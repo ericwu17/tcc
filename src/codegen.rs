@@ -6,7 +6,6 @@ pub fn generate_code(program: Program) -> String {
 
     result.push_str("_start:\n");
 
-
     assert!(program.function.name == "main");
     let exit_code = program.function.statement.expr;
 
