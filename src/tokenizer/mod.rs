@@ -1,14 +1,19 @@
+pub mod operator;
+
+use operator::{char_to_operator, is_operator, Op};
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token {
     OpenParen,
     CloseParen,
     OpenBrace,
     CloseBrace,
-    IntExpr { val: String },
+    IntLit { val: String },
     Identifier { val: String },
     Return,
     IntT,
     Semicolon,
+    Op(Op),
 }
 
 pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
@@ -35,6 +40,9 @@ pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
         } else if next_char == ';' {
             cursor.next();
             tokens.push(Token::Semicolon);
+        } else if is_operator(&next_char) {
+            cursor.next();
+            tokens.push(Token::Op(char_to_operator(&next_char)));
         } else if next_char.is_ascii_whitespace() {
             // ignore all whitespace
             cursor.next();
@@ -43,7 +51,7 @@ pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
             while cursor.peek().is_some() && (*cursor.peek().unwrap()).is_ascii_alphanumeric() {
                 val.push(cursor.next().unwrap());
             }
-            tokens.push(Token::IntExpr { val });
+            tokens.push(Token::IntLit { val });
         } else if next_char.is_ascii_alphabetic() {
             let mut val = String::new();
             while cursor.peek().is_some() && (*cursor.peek().unwrap()).is_ascii_alphanumeric() {

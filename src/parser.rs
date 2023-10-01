@@ -14,8 +14,22 @@ pub struct Function {
 }
 
 #[derive(Debug)]
-pub struct Statement {
-    pub expr: i32,
+pub enum Statement {
+    // the only type of statement we know is the return statement
+    Return(Expr),
+}
+
+#[derive(Debug)]
+pub enum UnOp {
+    Negation,
+    BitwiseComplement,
+    Not,
+}
+
+#[derive(Debug)]
+pub enum Expr {
+    UnOp(UnOp, Box<Expr>),
+    Int(i32),
 }
 
 pub fn generate_program_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Program {
@@ -101,22 +115,7 @@ pub fn generate_statement_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Stateme
         }
     }
 
-    match tokens.peek() {
-        Some(Token::IntExpr { val }) => {
-            match i32::from_str_radix(val, 10) {
-                Ok(v) => {
-                    expr = v;
-                    tokens.next();
-                }
-                Err(_) => {
-                    panic!()
-                }
-            };
-        }
-        _ => {
-            panic!()
-        }
-    }
+    expr = generate_expr_ast(tokens);
 
     match tokens.peek() {
         Some(Token::Semicolon) => {
@@ -127,5 +126,20 @@ pub fn generate_statement_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Stateme
         }
     }
 
-    Statement { expr }
+    Statement::Return(expr)
+}
+
+pub fn generate_expr_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Expr {
+    match tokens.next() {
+        Some(Token::IntLit { val: v }) => {
+            return Expr::Int(i32::from_str_radix(&v, 10).unwrap());
+        }
+        Some(Token::Op(op)) if op.to_un_op().is_some() => {
+            let inner_expr = generate_expr_ast(tokens);
+            return Expr::UnOp(op.to_un_op().unwrap(), Box::new(inner_expr));
+        }
+        _ => {
+            panic!()
+        }
+    }
 }

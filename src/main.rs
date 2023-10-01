@@ -40,8 +40,8 @@ fn main() {
         .expect(&format!("error reading file: {}", &input_filepath));
 
     let tokens = get_tokens(contents);
-    let program_AST = generate_program_ast(&mut tokens.into_iter().peekable());
-    let asm_code: String = generate_code(program_AST);
+    let program_ast = generate_program_ast(&mut tokens.into_iter().peekable());
+    let asm_code: String = generate_code(program_ast);
 
     File::create(ASM_FILE_NAME)
         .expect("error creating ASM output file.")

@@ -1,4 +1,6 @@
 <program> ::= <function>
 <function> ::= "int" <id> "(" ")" "{" <statement> "}"
 <statement> ::= "return" <exp> ";"
-<exp> ::= <int>
+<exp> ::= <term> { ("+" | "-") <term> }
+<term> ::= <factor> { ("*" | "/") <factor> }
+<factor> ::= "(" <exp> ")" | <unary_op> <factor> | <int>
