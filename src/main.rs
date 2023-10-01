@@ -1,8 +1,10 @@
+mod parser;
 mod tokenizer;
 
 use std::fs::File;
 use std::io::Read;
 
+use parser::generate_program_ast;
 use tokenizer::get_tokens;
 
 fn main() {
@@ -17,5 +19,7 @@ fn main() {
 
     let tokens = get_tokens(contents);
 
-    dbg!(tokens);
+    let program_AST = generate_program_ast(&mut tokens.into_iter().peekable());
+
+    dbg!(program_AST);
 }
