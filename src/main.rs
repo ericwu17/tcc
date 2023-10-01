@@ -1,9 +1,12 @@
 mod parser;
 mod tokenizer;
+mod codegen;
 
 use std::fs::File;
 use std::io::Read;
+use std::io::Write;
 
+use codegen::generate_code;
 use parser::generate_program_ast;
 use tokenizer::get_tokens;
 
@@ -21,5 +24,8 @@ fn main() {
 
     let program_AST = generate_program_ast(&mut tokens.into_iter().peekable());
 
-    dbg!(program_AST);
+    let asm_code: String = generate_code(program_AST);
+
+    let mut file = File::create("out.s").unwrap();
+    file.write(asm_code.as_bytes()).unwrap();
 }

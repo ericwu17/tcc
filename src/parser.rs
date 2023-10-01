@@ -4,18 +4,18 @@ use std::vec::IntoIter;
 
 #[derive(Debug)]
 pub struct Program {
-    function: Function,
+    pub function: Function,
 }
 
 #[derive(Debug)]
 pub struct Function {
-    name: String,
-    statement: Statement,
+    pub name: String,
+    pub statement: Statement,
 }
 
 #[derive(Debug)]
 pub struct Statement {
-    expr: i32,
+    pub expr: i32,
 }
 
 pub fn generate_program_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Program {
