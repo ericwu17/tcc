@@ -1,4 +1,4 @@
-// mod codegen;
+mod codegen;
 mod parser;
 mod tokenizer;
 
@@ -9,7 +9,7 @@ use std::io::Write;
 use std::process::Command;
 
 use clap::Parser;
-// use codegen::generate_code;
+use codegen::generate_code;
 use parser::generate_program_ast;
 use tokenizer::get_tokens;
 
@@ -41,17 +41,17 @@ fn main() {
 
     let tokens = get_tokens(contents);
     let program_ast = generate_program_ast(&mut tokens.into_iter().peekable());
-    // let asm_code: String = generate_code(program_ast);
-    dbg!(program_ast);
+    dbg!(&program_ast);
+    let asm_code: String = generate_code(program_ast);
 
-    // File::create(ASM_FILE_NAME)
-    //     .expect("error creating ASM output file.")
-    //     .write(asm_code.as_bytes())
-    //     .expect("error writing output to ASM output file.");
+    File::create(ASM_FILE_NAME)
+        .expect("error creating ASM output file.")
+        .write(asm_code.as_bytes())
+        .expect("error writing output to ASM output file.");
 
-    // if !no_assemble {
-    //     assemble_and_link();
-    // }
+    if !no_assemble {
+        assemble_and_link();
+    }
 }
 
 fn assemble_and_link() {

@@ -1,3 +1,4 @@
+use crate::parser::BinOp;
 use crate::parser::Expr;
 use crate::parser::Program;
 use crate::parser::Statement;
@@ -16,7 +17,7 @@ pub fn generate_code(program: Program) -> String {
             result.push_str(&generate_expr_code(expr));
         }
     }
-
+    result.push_str("  pop rdi\n");
     result.push_str("  mov rax, 60\n");
     result.push_str("  syscall\n");
 
@@ -26,26 +27,55 @@ pub fn generate_code(program: Program) -> String {
 fn generate_expr_code(expr: Expr) -> String {
     match expr {
         Expr::Int(v) => {
-            return format!("  mov rdi, {}\n", v);
+            return format!("  push  {}\n", v);
         }
         Expr::UnOp(op, inner_expr) => {
-            let outer_code;
-
+            let operation;
             match op {
                 UnOp::Negation => {
-                    outer_code = "  neg rdi\n";
+                    operation = "  neg rdi\n";
                 }
                 UnOp::BitwiseComplement => {
-                    outer_code = "  not rdi\n";
+                    operation = "  not rdi\n";
                 }
                 UnOp::Not => {
-                    outer_code = "  cmp rdi, 0\n  mov rdi, 0\n  sete dil\n";
+                    operation = "  cmp rdi, 0\n  mov rdi, 0\n  sete dil\n";
                 }
             }
 
-            let mut inner_code = generate_expr_code(*inner_expr);
-            inner_code.push_str(outer_code);
-            return inner_code;
+            let mut code = generate_expr_code(*inner_expr);
+            code.push_str("  pop rdi\n");
+            code.push_str(operation);
+            code.push_str("  push rdi\n");
+            return code;
+        }
+        Expr::BinOp(op, expr1, expr2) => {
+            let expr_1_code = generate_expr_code(*expr1);
+            let expr_2_code = generate_expr_code(*expr2);
+
+            let mut code = String::new();
+            code.push_str(&expr_1_code);
+            code.push_str(&expr_2_code);
+
+            code.push_str("  pop rdi\n"); // expr 2 in rdi
+            code.push_str("  pop rsi\n"); // expr 1 in rsi
+
+            match op {
+                BinOp::Plus => code.push_str("  add rdi, rsi\n"),
+                BinOp::Minus => code.push_str("  sub rdi, rsi\n"),
+                BinOp::Multiply => code.push_str("  imul rdi, rsi\n"),
+                BinOp::Divide => {
+                    code.push_str("  mov eax, rsi\n");
+                    code.push_str("  cdq\n");
+                    code.push_str("  idiv edi\n");
+                    code.push_str("  mov rdi, rax\n");
+                }
+            }
+
+            // final result goes into rdi
+            code.push_str("  push rdi\n");
+
+            return code;
         }
     }
 }
