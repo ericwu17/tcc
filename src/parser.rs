@@ -35,34 +35,10 @@ pub enum BinOp {
 }
 
 #[derive(Debug)]
-pub enum PlusMinus {
-    Plus,
-    Minus,
-}
-
-#[derive(Debug)]
-pub enum MulDiv {
-    Multiply,
-    Divide,
-}
-
-#[derive(Debug)]
-pub struct Expr {
-    initial_term: Term,
-    remaining_terms: Vec<(PlusMinus, Term)>,
-}
-
-#[derive(Debug)]
-pub struct Term {
-    initial_factor: Factor,
-    remaining_factors: Vec<(MulDiv, Factor)>,
-}
-
-#[derive(Debug)]
-pub enum Factor {
-    Expr(Box<Expr>),
-    UnOp(UnOp, Box<Factor>),
+pub enum Expr {
     Int(i32),
+    UnOp(UnOp, Box<Expr>),
+    BinOp(BinOp, Box<Expr>, Box<Expr>),
 }
 
 pub fn generate_program_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Program {
@@ -163,40 +139,31 @@ pub fn generate_statement_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Stateme
 }
 
 pub fn generate_expr_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Expr {
-    let term = generate_term_ast(tokens);
-
-    let mut remaining_terms = Vec::new();
+    let mut expr = generate_term_ast(tokens);
 
     while tokens.peek().is_some() && tokens.peek().unwrap().to_plus_minus().is_some() {
         let next_op = tokens.next().unwrap().to_plus_minus().unwrap();
-        let next_term = generate_term_ast(tokens);
-        remaining_terms.push((next_op, next_term))
+        let next_expr = generate_term_ast(tokens);
+
+        expr = Expr::BinOp(next_op, Box::new(expr), Box::new(next_expr));
     }
 
-    Expr {
-        initial_term: term,
-        remaining_terms,
-    }
+    expr
 }
 
-pub fn generate_term_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Term {
-    let factor = generate_factor_ast(tokens);
-
-    let mut remaining_factors = Vec::new();
+pub fn generate_term_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Expr {
+    let mut factor = generate_factor_ast(tokens);
 
     while tokens.peek().is_some() && tokens.peek().unwrap().to_mul_div().is_some() {
         let next_op = tokens.next().unwrap().to_mul_div().unwrap();
-        let next_term = generate_factor_ast(tokens);
-        remaining_factors.push((next_op, next_term))
+        let next_factor = generate_factor_ast(tokens);
+        factor = Expr::BinOp(next_op, Box::new(factor), Box::new(next_factor));
     }
 
-    Term {
-        initial_factor: factor,
-        remaining_factors,
-    }
+    factor
 }
 
-pub fn generate_factor_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Factor {
+pub fn generate_factor_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Expr {
     match tokens.peek() {
         Some(Token::OpenParen) => {
             tokens.next();
@@ -205,19 +172,19 @@ pub fn generate_factor_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Factor {
 
             assert!(tokens.next() == Some(Token::CloseParen));
 
-            return Factor::Expr(Box::new(expr));
+            return expr;
         }
-        Some(Token::Op(op)) if op.to_un_op().is_some() => {
-            let un_op = op.to_un_op().unwrap();
+        Some(token) if token.to_un_op().is_some() => {
+            let un_op = token.to_un_op().unwrap();
             tokens.next();
             let factor = generate_factor_ast(tokens);
-            return Factor::UnOp(un_op, Box::new(factor));
+            return Expr::UnOp(un_op, Box::new(factor));
         }
         Some(Token::IntLit { val }) => {
             let val_i32 = i32::from_str_radix(val, 10).unwrap();
             tokens.next();
 
-            return Factor::Int(val_i32);
+            return Expr::Int(val_i32);
         }
         _ => panic!(),
     }

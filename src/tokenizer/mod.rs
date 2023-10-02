@@ -2,7 +2,7 @@ pub mod operator;
 
 use operator::{char_to_operator, is_operator, Op};
 
-use crate::parser::{MulDiv, PlusMinus};
+use crate::parser::{BinOp, UnOp};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token {
@@ -19,18 +19,27 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn to_plus_minus(&self) -> Option<PlusMinus> {
+    pub fn to_plus_minus(&self) -> Option<BinOp> {
         match self {
-            Token::Op(Op::Minus) => Some(PlusMinus::Minus),
-            Token::Op(Op::Plus) => Some(PlusMinus::Plus),
+            Token::Op(Op::Minus) => Some(BinOp::Minus),
+            Token::Op(Op::Plus) => Some(BinOp::Plus),
             _ => None,
         }
     }
 
-    pub fn to_mul_div(&self) -> Option<MulDiv> {
+    pub fn to_mul_div(&self) -> Option<BinOp> {
         match self {
-            Token::Op(Op::Slash) => Some(MulDiv::Divide),
-            Token::Op(Op::Star) => Some(MulDiv::Multiply),
+            Token::Op(Op::Slash) => Some(BinOp::Divide),
+            Token::Op(Op::Star) => Some(BinOp::Multiply),
+            _ => None,
+        }
+    }
+
+    pub fn to_un_op(&self) -> Option<UnOp> {
+        match self {
+            Token::Op(Op::Minus) => Some(UnOp::Negation),
+            Token::Op(Op::BitwiseComplement) => Some(UnOp::BitwiseComplement),
+            Token::Op(Op::Not) => Some(UnOp::Not),
             _ => None,
         }
     }
@@ -42,7 +51,6 @@ pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
     let mut tokens: Vec<Token> = Vec::new();
 
     while cursor.peek().is_some() {
-        // do something
         let next_char: char = *cursor.peek().unwrap();
 
         if next_char == '{' {
