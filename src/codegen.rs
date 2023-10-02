@@ -57,17 +57,17 @@ fn generate_expr_code(expr: Expr) -> String {
             code.push_str(&expr_1_code);
             code.push_str(&expr_2_code);
 
-            code.push_str("  pop rdi\n"); // expr 2 in rdi
-            code.push_str("  pop rsi\n"); // expr 1 in rsi
+            code.push_str("  pop rsi\n"); // expr 2 in rsi
+            code.push_str("  pop rdi\n"); // expr 1 in rdi
 
             match op {
                 BinOp::Plus => code.push_str("  add rdi, rsi\n"),
                 BinOp::Minus => code.push_str("  sub rdi, rsi\n"),
                 BinOp::Multiply => code.push_str("  imul rdi, rsi\n"),
                 BinOp::Divide => {
-                    code.push_str("  mov eax, rsi\n");
+                    code.push_str("  mov eax, edi\n");
                     code.push_str("  cdq\n");
-                    code.push_str("  idiv edi\n");
+                    code.push_str("  idiv esi\n");
                     code.push_str("  mov rdi, rax\n");
                 }
             }
