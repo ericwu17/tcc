@@ -1,5 +1,3 @@
-use crate::parser::{BinOp, UnOp};
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Op {
     Minus,

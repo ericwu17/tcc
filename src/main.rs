@@ -56,21 +56,33 @@ fn main() {
 }
 
 fn assemble_and_link() {
-    Command::new("nasm")
+    let output = Command::new("nasm")
         .args(["-f", "elf64"])
         .arg(ASM_FILE_NAME)
         .args(["-o", OBJ_FILE_NAME])
         .output()
         .expect("failed to execute assembler process");
+    if output.status.code() != Some(0) {
+        dbg!(output);
+        panic!();
+    }
 
-    Command::new("ld")
+    let output = Command::new("ld")
         .arg(OBJ_FILE_NAME)
         .args(["-o", EXEC_FILE_NAME])
         .output()
         .expect("failed to execute linker process");
+    if output.status.code() != Some(0) {
+        dbg!(output);
+        panic!();
+    }
 
-    Command::new("rm")
+    let output = Command::new("rm")
         .arg(OBJ_FILE_NAME)
         .output()
         .expect("failed to execute process to remove object file");
+    if output.status.code() != Some(0) {
+        dbg!(output);
+        panic!();
+    }
 }
