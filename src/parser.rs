@@ -27,8 +27,41 @@ pub enum UnOp {
 }
 
 #[derive(Debug)]
-pub enum Expr {
-    UnOp(UnOp, Box<Expr>),
+pub enum BinOp {
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+}
+
+#[derive(Debug)]
+pub enum PlusMinus {
+    Plus,
+    Minus,
+}
+
+#[derive(Debug)]
+pub enum MulDiv {
+    Multiply,
+    Divide,
+}
+
+#[derive(Debug)]
+pub struct Expr {
+    initial_term: Term,
+    remaining_terms: Vec<(PlusMinus, Term)>,
+}
+
+#[derive(Debug)]
+pub struct Term {
+    initial_factor: Factor,
+    remaining_factors: Vec<(MulDiv, Factor)>,
+}
+
+#[derive(Debug)]
+pub enum Factor {
+    Expr(Box<Expr>),
+    UnOp(UnOp, Box<Factor>),
     Int(i32),
 }
 
@@ -130,16 +163,62 @@ pub fn generate_statement_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Stateme
 }
 
 pub fn generate_expr_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Expr {
-    match tokens.next() {
-        Some(Token::IntLit { val: v }) => {
-            return Expr::Int(i32::from_str_radix(&v, 10).unwrap());
+    let term = generate_term_ast(tokens);
+
+    let mut remaining_terms = Vec::new();
+
+    while tokens.peek().is_some() && tokens.peek().unwrap().to_plus_minus().is_some() {
+        let next_op = tokens.next().unwrap().to_plus_minus().unwrap();
+        let next_term = generate_term_ast(tokens);
+        remaining_terms.push((next_op, next_term))
+    }
+
+    Expr {
+        initial_term: term,
+        remaining_terms,
+    }
+}
+
+pub fn generate_term_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Term {
+    let factor = generate_factor_ast(tokens);
+
+    let mut remaining_factors = Vec::new();
+
+    while tokens.peek().is_some() && tokens.peek().unwrap().to_mul_div().is_some() {
+        let next_op = tokens.next().unwrap().to_mul_div().unwrap();
+        let next_term = generate_factor_ast(tokens);
+        remaining_factors.push((next_op, next_term))
+    }
+
+    Term {
+        initial_factor: factor,
+        remaining_factors,
+    }
+}
+
+pub fn generate_factor_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Factor {
+    match tokens.peek() {
+        Some(Token::OpenParen) => {
+            tokens.next();
+
+            let expr = generate_expr_ast(tokens);
+
+            assert!(tokens.next() == Some(Token::CloseParen));
+
+            return Factor::Expr(Box::new(expr));
         }
         Some(Token::Op(op)) if op.to_un_op().is_some() => {
-            let inner_expr = generate_expr_ast(tokens);
-            return Expr::UnOp(op.to_un_op().unwrap(), Box::new(inner_expr));
+            let un_op = op.to_un_op().unwrap();
+            tokens.next();
+            let factor = generate_factor_ast(tokens);
+            return Factor::UnOp(un_op, Box::new(factor));
         }
-        _ => {
-            panic!()
+        Some(Token::IntLit { val }) => {
+            let val_i32 = i32::from_str_radix(val, 10).unwrap();
+            tokens.next();
+
+            return Factor::Int(val_i32);
         }
+        _ => panic!(),
     }
 }

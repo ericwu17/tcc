@@ -2,6 +2,8 @@ pub mod operator;
 
 use operator::{char_to_operator, is_operator, Op};
 
+use crate::parser::{MulDiv, PlusMinus};
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token {
     OpenParen,
@@ -14,6 +16,24 @@ pub enum Token {
     IntT,
     Semicolon,
     Op(Op),
+}
+
+impl Token {
+    pub fn to_plus_minus(&self) -> Option<PlusMinus> {
+        match self {
+            Token::Op(Op::Minus) => Some(PlusMinus::Minus),
+            Token::Op(Op::Plus) => Some(PlusMinus::Plus),
+            _ => None,
+        }
+    }
+
+    pub fn to_mul_div(&self) -> Option<MulDiv> {
+        match self {
+            Token::Op(Op::Slash) => Some(MulDiv::Divide),
+            Token::Op(Op::Star) => Some(MulDiv::Multiply),
+            _ => None,
+        }
+    }
 }
 
 pub fn get_tokens(source_code_contents: String) -> Vec<Token> {

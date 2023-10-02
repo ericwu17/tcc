@@ -1,4 +1,4 @@
-use crate::parser::UnOp;
+use crate::parser::{BinOp, UnOp};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Op {
@@ -16,6 +16,16 @@ impl Op {
             Op::Minus => Some(UnOp::Negation),
             Op::BitwiseComplement => Some(UnOp::BitwiseComplement),
             Op::Not => Some(UnOp::Not),
+            _ => None,
+        }
+    }
+
+    pub fn to_bin_op(&self) -> Option<BinOp> {
+        match self {
+            Op::Plus => Some(BinOp::Plus),
+            Op::Minus => Some(BinOp::Minus),
+            Op::Star => Some(BinOp::Multiply),
+            Op::Slash => Some(BinOp::Divide),
             _ => None,
         }
     }
