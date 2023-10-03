@@ -70,6 +70,7 @@ fn generate_expr_code(expr: Expr) -> String {
                     code.push_str("  idiv esi\n");
                     code.push_str("  mov rdi, rax\n");
                 }
+                _ => panic!(),
             }
 
             // final result goes into rdi

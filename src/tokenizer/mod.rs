@@ -1,6 +1,6 @@
 pub mod operator;
 
-use operator::{char_to_operator, is_operator, Op};
+use operator::{char_to_operator, chars_to_operator, Op};
 
 use crate::parser::{BinOp, UnOp};
 
@@ -35,6 +35,38 @@ impl Token {
         }
     }
 
+    pub fn to_logical_or(&self) -> Option<BinOp> {
+        match self {
+            Token::Op(Op::DoublePipe) => Some(BinOp::LogicalOr),
+            _ => None,
+        }
+    }
+
+    pub fn to_logical_and(&self) -> Option<BinOp> {
+        match self {
+            Token::Op(Op::DoubleAnd) => Some(BinOp::LogicalAnd),
+            _ => None,
+        }
+    }
+
+    pub fn to_comparison_op(&self) -> Option<BinOp> {
+        match self {
+            Token::Op(Op::NotEq) => Some(BinOp::NotEquals),
+            Token::Op(Op::DoubleEq) => Some(BinOp::Equals),
+            _ => None,
+        }
+    }
+
+    pub fn to_ordering_op(&self) -> Option<BinOp> {
+        match self {
+            Token::Op(Op::LessThan) => Some(BinOp::LessThan),
+            Token::Op(Op::LessThanEq) => Some(BinOp::LessThanEq),
+            Token::Op(Op::GreaterThan) => Some(BinOp::GreaterThan),
+            Token::Op(Op::GreaterThanEq) => Some(BinOp::GreaterThanEq),
+            _ => None,
+        }
+    }
+
     pub fn to_un_op(&self) -> Option<UnOp> {
         match self {
             Token::Op(Op::Minus) => Some(UnOp::Negation),
@@ -62,6 +94,7 @@ impl SourceCodeCursor {
         self.contents.get(self.index)
     }
     fn peek_nth(&self, n: usize) -> Option<&char> {
+        // peek_nth(1) is equivalent to peek()
         self.contents.get(self.index + n - 1)
     }
 
@@ -78,6 +111,7 @@ pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
 
     while cursor.peek().is_some() {
         let next_char: char = *cursor.peek().unwrap();
+        let next_next_char: char = *cursor.peek_nth(2).unwrap_or(&' ');
 
         if next_char == '/' && cursor.peek_nth(2) == Some(&'/') {
             // ignore single line comments
@@ -97,9 +131,14 @@ pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
         } else if next_char == ';' {
             cursor.next();
             tokens.push(Token::Semicolon);
-        } else if is_operator(&next_char) {
+        } else if let Some(op) = chars_to_operator((next_char, next_next_char)) {
+            // must consume 2 characters for an operator that is 2 characters long
             cursor.next();
-            tokens.push(Token::Op(char_to_operator(&next_char)));
+            cursor.next();
+            tokens.push(Token::Op(op));
+        } else if let Some(op) = char_to_operator(next_char) {
+            cursor.next();
+            tokens.push(Token::Op(op));
         } else if next_char.is_ascii_whitespace() {
             // ignore all whitespace
             cursor.next();

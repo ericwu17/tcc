@@ -1,6 +1,11 @@
 <program> ::= <function>
 <function> ::= "int" <id> "(" ")" "{" <statement> "}"
 <statement> ::= "return" <exp> ";"
-<exp> ::= <term> { ("+" | "-") <term> }
+<exp> ::= <logical-or-term> { "||" <logical-or-term> }
+<logical-or-term> ::= <logical-and-term> { "&&" <logical-and-term> }
+<logical-and-term> ::= <comparison-term> { ("!=" | "==") <comparison-term> }
+<comparison-term> ::= <ordering-term> { ("<" | ">" | "<=" | ">=") <ordering-term> }
+<ordering-term> ::= <term> { ("+" | "-") <term> }
 <term> ::= <factor> { ("*" | "/") <factor> }
 <factor> ::= "(" <exp> ")" | <unary_op> <factor> | <int>
+<unary_op> ::= "!" | "~" | "-"

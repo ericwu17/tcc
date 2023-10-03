@@ -32,6 +32,14 @@ pub enum BinOp {
     Minus,
     Multiply,
     Divide,
+    LogicalOr,
+    LogicalAnd,
+    Equals,
+    NotEquals,
+    GreaterThan,
+    GreaterThanEq,
+    LessThan,
+    LessThanEq,
 }
 
 #[derive(Debug)]
@@ -139,6 +147,58 @@ pub fn generate_statement_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Stateme
 }
 
 pub fn generate_expr_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Expr {
+    let mut expr = generate_logical_or_term_ast(tokens);
+
+    while tokens.peek().is_some() && tokens.peek().unwrap().to_logical_or().is_some() {
+        let next_op = tokens.next().unwrap().to_logical_or().unwrap();
+        let next_expr = generate_logical_or_term_ast(tokens);
+
+        expr = Expr::BinOp(next_op, Box::new(expr), Box::new(next_expr));
+    }
+
+    expr
+}
+
+pub fn generate_logical_or_term_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Expr {
+    let mut expr = generate_logical_and_term_ast(tokens);
+
+    while tokens.peek().is_some() && tokens.peek().unwrap().to_logical_and().is_some() {
+        let next_op = tokens.next().unwrap().to_logical_and().unwrap();
+        let next_expr = generate_logical_and_term_ast(tokens);
+
+        expr = Expr::BinOp(next_op, Box::new(expr), Box::new(next_expr));
+    }
+
+    expr
+}
+
+pub fn generate_logical_and_term_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Expr {
+    let mut expr = generate_comparison_term_ast(tokens);
+
+    while tokens.peek().is_some() && tokens.peek().unwrap().to_comparison_op().is_some() {
+        let next_op = tokens.next().unwrap().to_comparison_op().unwrap();
+        let next_expr = generate_comparison_term_ast(tokens);
+
+        expr = Expr::BinOp(next_op, Box::new(expr), Box::new(next_expr));
+    }
+
+    expr
+}
+
+pub fn generate_comparison_term_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Expr {
+    let mut expr = generate_ordering_term_ast(tokens);
+
+    while tokens.peek().is_some() && tokens.peek().unwrap().to_ordering_op().is_some() {
+        let next_op = tokens.next().unwrap().to_ordering_op().unwrap();
+        let next_expr = generate_ordering_term_ast(tokens);
+
+        expr = Expr::BinOp(next_op, Box::new(expr), Box::new(next_expr));
+    }
+
+    expr
+}
+
+pub fn generate_ordering_term_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Expr {
     let mut expr = generate_term_ast(tokens);
 
     while tokens.peek().is_some() && tokens.peek().unwrap().to_plus_minus().is_some() {

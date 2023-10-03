@@ -1,9 +1,7 @@
 int main() {
   // This is a comment
-  return 5 - (!5 + -3);  // another comment
+  return 5 == 4 && 0;  // another comment
 }
-// ends with a comment too
-// hehe
 
 
 
