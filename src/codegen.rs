@@ -1,143 +1,237 @@
 use crate::parser::BinOp;
 use crate::parser::Expr;
+use crate::parser::Function;
 use crate::parser::Program;
 use crate::parser::Statement;
 use crate::parser::UnOp;
 
+struct X86Routine {
+    instructions: Vec<X86Instruction>,
+}
+
+impl X86Routine {
+    fn new() -> Self {
+        X86Routine {
+            instructions: Vec::new(),
+        }
+    }
+
+    fn push(&mut self, instr: X86Instruction) {
+        self.instructions.push(instr);
+    }
+
+    fn extend(&mut self, instrs: X86Routine) {
+        self.instructions.extend(instrs.instructions);
+    }
+
+    fn to_asm_code(&self) -> String {
+        let indent = "  ";
+        let mut result = String::new();
+        for instr in &self.instructions {
+            result.push_str(indent);
+            result.push_str(&instr.to_asm_code());
+            result.push('\n');
+        }
+
+        return result;
+    }
+
+    fn single_instruction(operation: &'static str, operands: Vec<&'static str>) -> Self {
+        X86Routine {
+            instructions: vec![X86Instruction {
+                operation,
+                operands,
+            }],
+        }
+    }
+}
+
+struct X86Instruction {
+    operation: &'static str,
+    operands: Vec<&'static str>,
+}
+
+impl X86Instruction {
+    fn to_asm_code(&self) -> String {
+        let mut result = String::new();
+        result.push_str(self.operation);
+        result.push(' ');
+        for operand in &self.operands {
+            result.push_str(operand);
+            result.push_str(", ");
+        }
+        return result;
+    }
+    fn single_op_instruction(operation: &'static str, operand: &'static str) -> Self {
+        X86Instruction {
+            operation,
+            operands: vec![operand],
+        }
+    }
+    fn double_op_instruction(
+        operation: &'static str,
+        operand1: &'static str,
+        operand2: &'static str,
+    ) -> Self {
+        X86Instruction {
+            operation,
+            operands: vec![operand1, operand2],
+        }
+    }
+}
+
 pub fn generate_code(program: Program) -> String {
     let mut result = String::new();
     result.push_str("global _start\n");
-
     result.push_str("_start:\n");
 
     assert!(program.function.name == "main");
 
-    match program.function.statement {
-        Statement::Return(expr) => {
-            result.push_str(&generate_expr_code(expr));
-        }
-    }
-    result.push_str("  pop rdi\n");
-    result.push_str("  mov rax, 60\n");
-    result.push_str("  syscall\n");
-
-    result
+    let routine = generate_function_code(program.function);
+    routine.to_asm_code()
 }
 
-fn generate_expr_code(expr: Expr) -> String {
+fn generate_function_code(func: Function) -> X86Routine {
+    let result = generate_statement_code(func.statement);
+
+    return result;
+}
+
+fn generate_statement_code(statement: Statement) -> X86Routine {
+    match statement {
+        Statement::Return(expr) => {
+            let mut result = generate_expr_code(expr);
+            result.push(X86Instruction::single_op_instruction("pop", "rdi"));
+            result.push(X86Instruction::double_op_instruction("mov", "rax", "60"));
+            result.push(X86Instruction {
+                operation: "syscall",
+                operands: vec![],
+            });
+            return result;
+        }
+    }
+}
+
+fn generate_expr_code(expr: Expr) -> X86Routine {
     match expr {
         Expr::Int(v) => {
-            return format!("  push  {}\n", v);
+            let operand = Box::leak(format!("{}", v).into_boxed_str());
+            return X86Routine::single_instruction("push", vec![operand]);
         }
         Expr::UnOp(op, inner_expr) => {
-            let operation;
-            match op {
-                UnOp::Negation => {
-                    operation = "  neg rdi\n";
-                }
-                UnOp::BitwiseComplement => {
-                    operation = "  not rdi\n";
-                }
-                UnOp::Not => {
-                    operation = "  cmp rdi, 0\n  mov rdi, 0\n  sete dil\n";
-                }
-            }
+            let action: X86Routine = match op {
+                UnOp::Negation => X86Routine::single_instruction("neg", vec!["rdi"]),
+                UnOp::BitwiseComplement => X86Routine::single_instruction("not", vec!["rdi"]),
+                UnOp::Not => X86Routine {
+                    instructions: vec![
+                        X86Instruction::double_op_instruction("cmp", "rdi", "0"),
+                        X86Instruction::double_op_instruction("mov", "rdi", "0"),
+                        X86Instruction::single_op_instruction("sete", "dil"),
+                    ],
+                },
+            };
 
             let mut code = generate_expr_code(*inner_expr);
-            code.push_str("  pop rdi\n");
-            code.push_str(operation);
-            code.push_str("  push rdi\n");
+            code.push(X86Instruction::single_op_instruction("pop", "rdi"));
+            code.extend(action);
+            code.push(X86Instruction::single_op_instruction("push", "rdi"));
             return code;
         }
         Expr::BinOp(op, expr1, expr2) => {
             let expr_1_code = generate_expr_code(*expr1);
             let expr_2_code = generate_expr_code(*expr2);
 
-            let mut code = String::new();
-            code.push_str(&expr_1_code);
-            code.push_str(&expr_2_code);
+            let mut code = X86Routine::new();
+            code.extend(expr_1_code);
+            code.extend(expr_2_code);
 
-            code.push_str(&generate_binop_code(op));
+            code.extend(generate_binop_code(op));
 
             return code;
         }
     }
 }
 
-fn generate_binop_code(op: BinOp) -> String {
-    let mut code = String::new();
-    code.push_str("  pop rsi\n"); // expr 2 in rsi
-    code.push_str("  pop rdi\n"); // expr 1 in rdi
+fn generate_binop_code(op: BinOp) -> X86Routine {
+    let mut code = X86Routine::new();
+    code.push(X86Instruction::single_op_instruction("pop", "rsi")); // expr 2 in rsi
+    code.push(X86Instruction::single_op_instruction("pop", "rdi")); // expr 1 in rdi
 
     match op {
-        BinOp::Plus => code.push_str("  add rdi, rsi\n"),
-        BinOp::Minus => code.push_str("  sub rdi, rsi\n"),
-        BinOp::Multiply => code.push_str("  imul rdi, rsi\n"),
+        BinOp::Plus => code.push(X86Instruction::double_op_instruction("add", "rdi", "rsi")),
+        BinOp::Minus => code.push(X86Instruction::double_op_instruction("sub", "rdi", "rsi")),
+        BinOp::Multiply => code.push(X86Instruction::double_op_instruction("imul", "rdi", "rsi")),
         BinOp::Divide => {
-            code.push_str("  mov eax, edi\n");
-            code.push_str("  cdq\n");
-            code.push_str("  idiv esi\n");
-            code.push_str("  mov rdi, rax\n");
+            code.push(X86Instruction::double_op_instruction("mov", "eax", "edi"));
+            code.push(X86Instruction {
+                operation: "cdq",
+                operands: vec![],
+            });
+            code.push(X86Instruction::single_op_instruction("idiv", "esi"));
+            code.push(X86Instruction::double_op_instruction("mov", "rdi", "rax"));
         }
         BinOp::LogicalOr => {
             // TODO: implement short-circuiting of logical or
-            code.push_str("  cmp rdi, 0\n");
-            code.push_str("  mov eax, 0\n");
-            code.push_str("  setne al\n");
-            code.push_str("  mov rdi, 0\n");
-            code.push_str("  or rdi, rax\n");
+            code.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
+            code.push(X86Instruction::double_op_instruction("mov", "eax", "0"));
+            code.push(X86Instruction::single_op_instruction("setne", "al"));
+            code.push(X86Instruction::double_op_instruction("mov", "rdi", "0"));
+            code.push(X86Instruction::double_op_instruction("or", "rdi", "rax"));
 
-            code.push_str("  cmp rsi, 0\n");
-            code.push_str("  mov eax, 0\n");
-            code.push_str("  setne al\n");
-            code.push_str("  or rdi, rax\n");
+            code.push(X86Instruction::double_op_instruction("cmp", "rsi", "0"));
+            code.push(X86Instruction::double_op_instruction("mov", "eax", "0"));
+            code.push(X86Instruction::single_op_instruction("setne", "al"));
+            code.push(X86Instruction::double_op_instruction("or", "rdi", "rax"));
         }
         BinOp::LogicalAnd => {
             // TODO: implement short-circuiting of logical and
-            code.push_str("  cmp rdi, 0\n");
-            code.push_str("  mov eax, 0\n");
-            code.push_str("  setne al\n");
-            code.push_str("  mov rdi, 1\n");
-            code.push_str("  and rdi, rax\n");
+            code.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
+            code.push(X86Instruction::double_op_instruction("mov", "eax", "0"));
+            code.push(X86Instruction::single_op_instruction("setne", "al"));
+            code.push(X86Instruction::double_op_instruction("mov", "rdi", "1"));
+            code.push(X86Instruction::double_op_instruction("and", "rdi", "rax"));
 
-            code.push_str("  cmp rsi, 0\n");
-            code.push_str("  mov eax, 0\n");
-            code.push_str("  setne al\n");
-            code.push_str("  and rdi, rax\n");
+            code.push(X86Instruction::double_op_instruction("cmp", "rsi", "0"));
+            code.push(X86Instruction::double_op_instruction("mov", "eax", "0"));
+            code.push(X86Instruction::single_op_instruction("setne", "al"));
+            code.push(X86Instruction::double_op_instruction("and", "rdi", "rax"));
         }
         BinOp::Equals => {
-            code.push_str("  cmp rdi, rsi\n");
-            code.push_str("  mov rdi, 0\n");
-            code.push_str("  sete dil\n");
+            code.push(X86Instruction::double_op_instruction("cmp", "rdi", "rsi"));
+            code.push(X86Instruction::double_op_instruction("mov", "rdi", "0"));
+            code.push(X86Instruction::single_op_instruction("sete", "dil"));
         }
         BinOp::NotEquals => {
-            code.push_str("  cmp rdi, rsi\n");
-            code.push_str("  mov rdi, 0\n");
-            code.push_str("  setne dil\n");
+            code.push(X86Instruction::double_op_instruction("cmp", "rdi", "rsi"));
+            code.push(X86Instruction::double_op_instruction("mov", "rdi", "0"));
+            code.push(X86Instruction::single_op_instruction("setne", "dil"));
         }
         BinOp::GreaterThan => {
-            code.push_str("  cmp rdi, rsi\n");
-            code.push_str("  mov rdi, 0\n");
-            code.push_str("  setg dil\n");
+            code.push(X86Instruction::double_op_instruction("cmp", "rdi", "rsi"));
+            code.push(X86Instruction::double_op_instruction("mov", "rdi", "0"));
+            code.push(X86Instruction::single_op_instruction("setg", "dil"));
         }
         BinOp::LessThan => {
-            code.push_str("  cmp rdi, rsi\n");
-            code.push_str("  mov rdi, 0\n");
-            code.push_str("  setl dil\n");
+            code.push(X86Instruction::double_op_instruction("cmp", "rdi", "rsi"));
+            code.push(X86Instruction::double_op_instruction("mov", "rdi", "0"));
+            code.push(X86Instruction::single_op_instruction("setl", "dil"));
         }
         BinOp::GreaterThanEq => {
-            code.push_str("  cmp rdi, rsi\n");
-            code.push_str("  mov rdi, 0\n");
-            code.push_str("  setge dil\n");
+            code.push(X86Instruction::double_op_instruction("cmp", "rdi", "rsi"));
+            code.push(X86Instruction::double_op_instruction("mov", "rdi", "0"));
+            code.push(X86Instruction::single_op_instruction("setge", "dil"));
         }
         BinOp::LessThanEq => {
-            code.push_str("  cmp rdi, rsi\n");
-            code.push_str("  mov rdi, 0\n");
-            code.push_str("  setle dil\n");
+            code.push(X86Instruction::double_op_instruction("cmp", "rdi", "rsi"));
+            code.push(X86Instruction::double_op_instruction("mov", "rdi", "0"));
+            code.push(X86Instruction::single_op_instruction("setle", "dil"));
         }
     }
 
     // final result goes into rdi
-    code.push_str("  push rdi\n");
+    code.push(X86Instruction {
+        operation: "push",
+        operands: vec!["rdi"],
+    });
     return code;
 }
