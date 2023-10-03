@@ -57,26 +57,87 @@ fn generate_expr_code(expr: Expr) -> String {
             code.push_str(&expr_1_code);
             code.push_str(&expr_2_code);
 
-            code.push_str("  pop rsi\n"); // expr 2 in rsi
-            code.push_str("  pop rdi\n"); // expr 1 in rdi
-
-            match op {
-                BinOp::Plus => code.push_str("  add rdi, rsi\n"),
-                BinOp::Minus => code.push_str("  sub rdi, rsi\n"),
-                BinOp::Multiply => code.push_str("  imul rdi, rsi\n"),
-                BinOp::Divide => {
-                    code.push_str("  mov eax, edi\n");
-                    code.push_str("  cdq\n");
-                    code.push_str("  idiv esi\n");
-                    code.push_str("  mov rdi, rax\n");
-                }
-                _ => panic!(),
-            }
-
-            // final result goes into rdi
-            code.push_str("  push rdi\n");
+            code.push_str(&generate_binop_code(op));
 
             return code;
         }
     }
+}
+
+fn generate_binop_code(op: BinOp) -> String {
+    let mut code = String::new();
+    code.push_str("  pop rsi\n"); // expr 2 in rsi
+    code.push_str("  pop rdi\n"); // expr 1 in rdi
+
+    match op {
+        BinOp::Plus => code.push_str("  add rdi, rsi\n"),
+        BinOp::Minus => code.push_str("  sub rdi, rsi\n"),
+        BinOp::Multiply => code.push_str("  imul rdi, rsi\n"),
+        BinOp::Divide => {
+            code.push_str("  mov eax, edi\n");
+            code.push_str("  cdq\n");
+            code.push_str("  idiv esi\n");
+            code.push_str("  mov rdi, rax\n");
+        }
+        BinOp::LogicalOr => {
+            // TODO: implement short-circuiting of logical or
+            code.push_str("  cmp rdi, 0\n");
+            code.push_str("  mov eax, 0\n");
+            code.push_str("  setne al\n");
+            code.push_str("  mov rdi, 0\n");
+            code.push_str("  or rdi, rax\n");
+
+            code.push_str("  cmp rdi, 0\n");
+            code.push_str("  mov eax, 0\n");
+            code.push_str("  setne al\n");
+            code.push_str("  or rdi, rax\n");
+        }
+        BinOp::LogicalAnd => {
+            // TODO: implement short-circuiting of logical or
+            code.push_str("  cmp rdi, 0\n");
+            code.push_str("  mov eax, 0\n");
+            code.push_str("  setne al\n");
+            code.push_str("  mov rdi, 1\n");
+            code.push_str("  and rdi, rax\n");
+
+            code.push_str("  cmp rdi, 0\n");
+            code.push_str("  mov eax, 0\n");
+            code.push_str("  setne al\n");
+            code.push_str("  and rdi, rax\n");
+        }
+        BinOp::Equals => {
+            code.push_str("  cmp rdi, rsi");
+            code.push_str("  mov rdi, 0");
+            code.push_str("  sete dil");
+        }
+        BinOp::NotEquals => {
+            code.push_str("  cmp rdi, rsi");
+            code.push_str("  mov rdi, 0");
+            code.push_str("  setne dil");
+        }
+        BinOp::GreaterThan => {
+            code.push_str("  cmp rdi, rsi");
+            code.push_str("  mov rdi, 0");
+            code.push_str("  setl dil");
+        }
+        BinOp::LessThan => {
+            code.push_str("  cmp rdi, rsi");
+            code.push_str("  mov rdi, 0");
+            code.push_str("  setg dil");
+        }
+        BinOp::GreaterThanEq => {
+            code.push_str("  cmp rdi, rsi");
+            code.push_str("  mov rdi, 0");
+            code.push_str("  setle dil");
+        }
+        BinOp::LessThanEq => {
+            code.push_str("  cmp rdi, rsi");
+            code.push_str("  mov rdi, 0");
+            code.push_str("  setge dil");
+        }
+    }
+
+    // final result goes into rdi
+    code.push_str("  push rdi\n");
+    return code;
 }
