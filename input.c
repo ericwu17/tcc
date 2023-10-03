@@ -1,3 +1,4 @@
 int main() {
-    return 1 && 0;
+  // return the bitwise complement of 167
+  return 167 / 20;
 }

@@ -178,46 +178,58 @@ pub fn generate_expr_ast(
     tokens: &mut Peekable<IntoIter<Token>>,
     curr_operator_precedence: BinOpPrecedenceLevel,
 ) -> Expr {
-    if let Some(next_operator_precedence) = curr_operator_precedence.next_level() {
-        let mut expr: Expr = generate_expr_ast(tokens, next_operator_precedence);
+    let mut expr: Expr;
+    let next_operator_precedence_option = curr_operator_precedence.next_level();
 
-        while tokens.peek().is_some() {
-            if let Some(next_op) = tokens
-                .peek()
-                .unwrap()
-                .to_binop_precedence_level(curr_operator_precedence)
-            {
-                tokens.next();
-                let next_expr = generate_expr_ast(tokens, next_operator_precedence);
-                expr = Expr::BinOp(next_op, Box::new(expr), Box::new(next_expr));
-            } else {
-                break;
-            }
-        }
-        return expr;
+    if let Some(next_operator_precedence) = next_operator_precedence_option {
+        expr = generate_expr_ast(tokens, next_operator_precedence);
     } else {
-        match tokens.peek() {
-            Some(Token::OpenParen) => {
-                tokens.next();
+        expr = generate_factor_ast(tokens);
+    }
 
-                let expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
-
-                assert!(tokens.next() == Some(Token::CloseParen));
-                return expr;
+    while tokens.peek().is_some() {
+        if let Some(next_op) = tokens
+            .peek()
+            .unwrap()
+            .to_binop_precedence_level(curr_operator_precedence)
+        {
+            tokens.next();
+            let next_expr;
+            if let Some(next_operator_precedence) = next_operator_precedence_option {
+                next_expr = generate_expr_ast(tokens, next_operator_precedence);
+            } else {
+                next_expr = generate_factor_ast(tokens);
             }
-            Some(token) if token.to_un_op().is_some() => {
-                let un_op = token.to_un_op().unwrap();
-                tokens.next();
-                let factor = generate_expr_ast(tokens, curr_operator_precedence);
-                return Expr::UnOp(un_op, Box::new(factor));
-            }
-            Some(Token::IntLit { val }) => {
-                let val_i32 = i32::from_str_radix(val, 10).unwrap();
-                tokens.next();
-
-                return Expr::Int(val_i32);
-            }
-            _ => panic!(),
+            expr = Expr::BinOp(next_op, Box::new(expr), Box::new(next_expr));
+        } else {
+            break;
         }
+    }
+    return expr;
+}
+
+pub fn generate_factor_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Expr {
+    match tokens.peek() {
+        Some(Token::OpenParen) => {
+            tokens.next();
+
+            let expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
+
+            assert!(tokens.next() == Some(Token::CloseParen));
+            return expr;
+        }
+        Some(token) if token.to_un_op().is_some() => {
+            let un_op = token.to_un_op().unwrap();
+            tokens.next();
+            let factor = generate_factor_ast(tokens);
+            return Expr::UnOp(un_op, Box::new(factor));
+        }
+        Some(Token::IntLit { val }) => {
+            let val_i32 = i32::from_str_radix(val, 10).unwrap();
+            tokens.next();
+
+            return Expr::Int(val_i32);
+        }
+        _ => panic!(),
     }
 }
