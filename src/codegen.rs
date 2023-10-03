@@ -87,53 +87,53 @@ fn generate_binop_code(op: BinOp) -> String {
             code.push_str("  mov rdi, 0\n");
             code.push_str("  or rdi, rax\n");
 
-            code.push_str("  cmp rdi, 0\n");
+            code.push_str("  cmp rsi, 0\n");
             code.push_str("  mov eax, 0\n");
             code.push_str("  setne al\n");
             code.push_str("  or rdi, rax\n");
         }
         BinOp::LogicalAnd => {
-            // TODO: implement short-circuiting of logical or
+            // TODO: implement short-circuiting of logical and
             code.push_str("  cmp rdi, 0\n");
             code.push_str("  mov eax, 0\n");
             code.push_str("  setne al\n");
             code.push_str("  mov rdi, 1\n");
             code.push_str("  and rdi, rax\n");
 
-            code.push_str("  cmp rdi, 0\n");
+            code.push_str("  cmp rsi, 0\n");
             code.push_str("  mov eax, 0\n");
             code.push_str("  setne al\n");
             code.push_str("  and rdi, rax\n");
         }
         BinOp::Equals => {
-            code.push_str("  cmp rdi, rsi");
-            code.push_str("  mov rdi, 0");
-            code.push_str("  sete dil");
+            code.push_str("  cmp rdi, rsi\n");
+            code.push_str("  mov rdi, 0\n");
+            code.push_str("  sete dil\n");
         }
         BinOp::NotEquals => {
-            code.push_str("  cmp rdi, rsi");
-            code.push_str("  mov rdi, 0");
-            code.push_str("  setne dil");
+            code.push_str("  cmp rdi, rsi\n");
+            code.push_str("  mov rdi, 0\n");
+            code.push_str("  setne dil\n");
         }
         BinOp::GreaterThan => {
-            code.push_str("  cmp rdi, rsi");
-            code.push_str("  mov rdi, 0");
-            code.push_str("  setl dil");
+            code.push_str("  cmp rdi, rsi\n");
+            code.push_str("  mov rdi, 0\n");
+            code.push_str("  setg dil\n");
         }
         BinOp::LessThan => {
-            code.push_str("  cmp rdi, rsi");
-            code.push_str("  mov rdi, 0");
-            code.push_str("  setg dil");
+            code.push_str("  cmp rdi, rsi\n");
+            code.push_str("  mov rdi, 0\n");
+            code.push_str("  setl dil\n");
         }
         BinOp::GreaterThanEq => {
-            code.push_str("  cmp rdi, rsi");
-            code.push_str("  mov rdi, 0");
-            code.push_str("  setle dil");
+            code.push_str("  cmp rdi, rsi\n");
+            code.push_str("  mov rdi, 0\n");
+            code.push_str("  setge dil\n");
         }
         BinOp::LessThanEq => {
-            code.push_str("  cmp rdi, rsi");
-            code.push_str("  mov rdi, 0");
-            code.push_str("  setge dil");
+            code.push_str("  cmp rdi, rsi\n");
+            code.push_str("  mov rdi, 0\n");
+            code.push_str("  setle dil\n");
         }
     }
 
