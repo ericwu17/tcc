@@ -57,7 +57,7 @@ fn main() {
 
 fn assemble_and_link() {
     let output = Command::new("nasm")
-        .args(["-f", "elf64"])
+        .args(["-g", "-f", "elf64"])
         .arg(ASM_FILE_NAME)
         .args(["-o", OBJ_FILE_NAME])
         .output()
