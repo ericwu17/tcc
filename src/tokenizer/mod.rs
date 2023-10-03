@@ -2,7 +2,7 @@ pub mod operator;
 
 use operator::{char_to_operator, chars_to_operator, Op};
 
-use crate::parser::{BinOp, UnOp};
+use crate::parser::{BinOp, BinOpPrecedenceLevel, UnOp};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token {
@@ -19,51 +19,38 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn to_plus_minus(&self) -> Option<BinOp> {
-        match self {
-            Token::Op(Op::Minus) => Some(BinOp::Minus),
-            Token::Op(Op::Plus) => Some(BinOp::Plus),
-            _ => None,
-        }
-    }
-
-    pub fn to_mul_div(&self) -> Option<BinOp> {
-        match self {
-            Token::Op(Op::Slash) => Some(BinOp::Divide),
-            Token::Op(Op::Star) => Some(BinOp::Multiply),
-            _ => None,
-        }
-    }
-
-    pub fn to_logical_or(&self) -> Option<BinOp> {
-        match self {
-            Token::Op(Op::DoublePipe) => Some(BinOp::LogicalOr),
-            _ => None,
-        }
-    }
-
-    pub fn to_logical_and(&self) -> Option<BinOp> {
-        match self {
-            Token::Op(Op::DoubleAnd) => Some(BinOp::LogicalAnd),
-            _ => None,
-        }
-    }
-
-    pub fn to_comparison_op(&self) -> Option<BinOp> {
-        match self {
-            Token::Op(Op::NotEq) => Some(BinOp::NotEquals),
-            Token::Op(Op::DoubleEq) => Some(BinOp::Equals),
-            _ => None,
-        }
-    }
-
-    pub fn to_ordering_op(&self) -> Option<BinOp> {
-        match self {
-            Token::Op(Op::LessThan) => Some(BinOp::LessThan),
-            Token::Op(Op::LessThanEq) => Some(BinOp::LessThanEq),
-            Token::Op(Op::GreaterThan) => Some(BinOp::GreaterThan),
-            Token::Op(Op::GreaterThanEq) => Some(BinOp::GreaterThanEq),
-            _ => None,
+    pub fn to_binop_precedence_level(&self, level: BinOpPrecedenceLevel) -> Option<BinOp> {
+        match level {
+            BinOpPrecedenceLevel::MulDiv => match self {
+                Token::Op(Op::Slash) => Some(BinOp::Divide),
+                Token::Op(Op::Star) => Some(BinOp::Multiply),
+                _ => None,
+            },
+            BinOpPrecedenceLevel::AddSub => match self {
+                Token::Op(Op::Minus) => Some(BinOp::Minus),
+                Token::Op(Op::Plus) => Some(BinOp::Plus),
+                _ => None,
+            },
+            BinOpPrecedenceLevel::OrderingCmp => match self {
+                Token::Op(Op::LessThan) => Some(BinOp::LessThan),
+                Token::Op(Op::LessThanEq) => Some(BinOp::LessThanEq),
+                Token::Op(Op::GreaterThan) => Some(BinOp::GreaterThan),
+                Token::Op(Op::GreaterThanEq) => Some(BinOp::GreaterThanEq),
+                _ => None,
+            },
+            BinOpPrecedenceLevel::EqCmp => match self {
+                Token::Op(Op::NotEq) => Some(BinOp::NotEquals),
+                Token::Op(Op::DoubleEq) => Some(BinOp::Equals),
+                _ => None,
+            },
+            BinOpPrecedenceLevel::LogicalAnd => match self {
+                Token::Op(Op::DoubleAnd) => Some(BinOp::LogicalAnd),
+                _ => None,
+            },
+            BinOpPrecedenceLevel::LogicalOr => match self {
+                Token::Op(Op::DoublePipe) => Some(BinOp::LogicalOr),
+                _ => None,
+            },
         }
     }
 
