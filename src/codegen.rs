@@ -124,11 +124,26 @@ fn generate_function_code(func: Function) -> X86Routine {
     for statement in &func.statements {
         result.extend(generate_statement_code(statement, &variable_map));
     }
+    let mut last_statement_is_return = false;
+    if !func.statements.is_empty() {
+        if let Statement::Return(_) = func.statements.get(func.statements.len() - 1).unwrap() {
+            last_statement_is_return = true;
+        }
+    }
+    if !last_statement_is_return {
+        result.extend(generate_statement_code(
+            &Statement::Return(Expr::Int(0)),
+            &variable_map,
+        ));
+    }
 
     // let result = generate_statement_code(func.statement);
     result.push(X86Instruction::double_op_instruction("mov", "rsp", "rbp")); // restore rsp to what it was before this function was called
     result.push(X86Instruction::single_op_instruction("pop", "rbp")); // rbp now points to base of stack frame of outer function
-
+    result.push(X86Instruction {
+        operation: "ret",
+        operands: vec![],
+    });
     return result;
 }
 
@@ -204,6 +219,7 @@ fn generate_expr_code(expr: &Expr, variable_map: &HashMap<String, &'static str>)
                 var_location,
                 "rdi",
             ));
+            result.push(X86Instruction::single_op_instruction("push", "rdi"));
             return result;
         }
         Expr::Int(v) => {
