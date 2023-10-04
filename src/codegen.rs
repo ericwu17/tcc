@@ -11,6 +11,8 @@ struct X86Routine {
     instructions: Vec<X86Instruction>,
 }
 
+static mut LABEL_COUNT: usize = 0;
+
 impl X86Routine {
     fn new() -> Self {
         X86Routine {
@@ -30,9 +32,16 @@ impl X86Routine {
         let indent = "  ";
         let mut result = String::new();
         for instr in &self.instructions {
-            result.push_str(indent);
-            result.push_str(&instr.to_asm_code());
-            result.push('\n');
+            if !instr.operation.starts_with(".") {
+                // we indent everything except for labels
+                result.push_str(indent);
+                result.push_str(&instr.to_asm_code());
+                result.push('\n');
+            } else {
+                result.push_str(&instr.to_asm_code());
+                result.push(':');
+                result.push('\n');
+            }
         }
 
         return result;
@@ -246,6 +255,10 @@ fn generate_expr_code(expr: &Expr, variable_map: &HashMap<String, &'static str>)
             return code;
         }
         Expr::BinOp(op, expr1, expr2) => {
+            if op == &BinOp::LogicalAnd || op == &BinOp::LogicalOr {
+                return generate_short_circuiting_binop_code(op, expr1, expr2, variable_map);
+            }
+
             let expr_1_code = generate_expr_code(expr1, variable_map);
             let expr_2_code = generate_expr_code(expr2, variable_map);
 
@@ -279,30 +292,12 @@ fn generate_binop_code(op: &BinOp) -> X86Routine {
             code.push(X86Instruction::double_op_instruction("mov", "rdi", "rax"));
         }
         BinOp::LogicalOr => {
-            // TODO: implement short-circuiting of logical or
-            code.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
-            code.push(X86Instruction::double_op_instruction("mov", "eax", "0"));
-            code.push(X86Instruction::single_op_instruction("setne", "al"));
-            code.push(X86Instruction::double_op_instruction("mov", "rdi", "0"));
-            code.push(X86Instruction::double_op_instruction("or", "rdi", "rax"));
-
-            code.push(X86Instruction::double_op_instruction("cmp", "rsi", "0"));
-            code.push(X86Instruction::double_op_instruction("mov", "eax", "0"));
-            code.push(X86Instruction::single_op_instruction("setne", "al"));
-            code.push(X86Instruction::double_op_instruction("or", "rdi", "rax"));
+            // should have used the generate_short_circuiting_binop_code() function
+            unreachable!();
         }
         BinOp::LogicalAnd => {
-            // TODO: implement short-circuiting of logical and
-            code.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
-            code.push(X86Instruction::double_op_instruction("mov", "eax", "0"));
-            code.push(X86Instruction::single_op_instruction("setne", "al"));
-            code.push(X86Instruction::double_op_instruction("mov", "rdi", "1"));
-            code.push(X86Instruction::double_op_instruction("and", "rdi", "rax"));
-
-            code.push(X86Instruction::double_op_instruction("cmp", "rsi", "0"));
-            code.push(X86Instruction::double_op_instruction("mov", "eax", "0"));
-            code.push(X86Instruction::single_op_instruction("setne", "al"));
-            code.push(X86Instruction::double_op_instruction("and", "rdi", "rax"));
+            // should have used the generate_short_circuiting_binop_code() function
+            unreachable!();
         }
         BinOp::Equals => {
             code.push(X86Instruction::double_op_instruction("cmp", "rdi", "rsi"));
@@ -342,4 +337,79 @@ fn generate_binop_code(op: &BinOp) -> X86Routine {
         operands: vec!["rdi"],
     });
     return code;
+}
+
+fn generate_short_circuiting_binop_code(
+    op: &BinOp,
+    expr1: &Expr,
+    expr2: &Expr,
+    variable_map: &HashMap<String, &'static str>,
+) -> X86Routine {
+    match op {
+        BinOp::LogicalAnd => {
+            let label1 = get_new_label();
+            let label2 = get_new_label();
+
+            let mut result = generate_expr_code(expr1, variable_map);
+            result.push(X86Instruction::single_op_instruction("pop", "rdi"));
+            result.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
+            result.push(X86Instruction::single_op_instruction("je", label1));
+
+            result.extend(generate_expr_code(expr2, variable_map));
+
+            result.push(X86Instruction::single_op_instruction("pop", "rdi"));
+            result.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
+            result.push(X86Instruction::single_op_instruction("setne", "al"));
+            result.push(X86Instruction::single_op_instruction("push", "rax"));
+            result.push(X86Instruction::single_op_instruction("jmp", label2));
+            result.push(X86Instruction {
+                operation: label1,
+                operands: vec![],
+            });
+            result.push(X86Instruction::single_op_instruction("push", "0"));
+            result.push(X86Instruction {
+                operation: label2,
+                operands: vec![],
+            });
+
+            return result;
+        }
+        BinOp::LogicalOr => {
+            let label1 = get_new_label();
+            let label2 = get_new_label();
+
+            let mut result = generate_expr_code(expr1, variable_map);
+            result.push(X86Instruction::single_op_instruction("pop", "rdi"));
+            result.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
+            result.push(X86Instruction::single_op_instruction("jne", label1));
+
+            result.extend(generate_expr_code(expr2, variable_map));
+
+            result.push(X86Instruction::single_op_instruction("pop", "rdi"));
+            result.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
+            result.push(X86Instruction::single_op_instruction("setne", "al"));
+            result.push(X86Instruction::single_op_instruction("push", "rax"));
+            result.push(X86Instruction::single_op_instruction("jmp", label2));
+            result.push(X86Instruction {
+                operation: label1,
+                operands: vec![],
+            });
+            result.push(X86Instruction::single_op_instruction("push", "1"));
+            result.push(X86Instruction {
+                operation: label2,
+                operands: vec![],
+            });
+
+            return result;
+        }
+        _ => unreachable!(),
+    }
+}
+
+fn get_new_label() -> &'static str {
+    unsafe {
+        LABEL_COUNT += 1;
+
+        return Box::leak(format!(".L{}", LABEL_COUNT).into_boxed_str());
+    }
 }

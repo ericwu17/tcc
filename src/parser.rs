@@ -25,7 +25,7 @@ pub enum UnOp {
     Not,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum BinOp {
     Multiply,
     Divide,
