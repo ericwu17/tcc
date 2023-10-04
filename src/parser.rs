@@ -1,6 +1,4 @@
 use crate::tokenizer::Token;
-use std::iter::Peekable;
-use std::vec::IntoIter;
 
 #[derive(Debug)]
 pub struct Program {
@@ -10,13 +8,14 @@ pub struct Program {
 #[derive(Debug)]
 pub struct Function {
     pub name: String,
-    pub statement: Statement,
+    pub statements: Vec<Statement>,
 }
 
 #[derive(Debug)]
 pub enum Statement {
-    // the only type of statement we know is the return statement
     Return(Expr),
+    Declare(String, Option<Expr>),
+    Expr(Expr),
 }
 
 #[derive(Debug)]
@@ -42,7 +41,7 @@ pub enum BinOp {
     LogicalOr,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BinOpPrecedenceLevel {
     MulDiv,
     AddSub,
@@ -72,18 +71,45 @@ impl BinOpPrecedenceLevel {
 #[derive(Debug)]
 pub enum Expr {
     Int(i32),
+    Var(String),
+    Assign(String, Box<Expr>),
     UnOp(UnOp, Box<Expr>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
 }
 
-pub fn generate_program_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Program {
-    let f = generate_function_ast(tokens);
+pub struct TokenCursor {
+    contents: Vec<Token>,
+    index: usize,
+}
+
+impl TokenCursor {
+    pub fn new(contents: Vec<Token>) -> Self {
+        TokenCursor { contents, index: 0 }
+    }
+
+    fn peek(&self) -> Option<&Token> {
+        self.contents.get(self.index)
+    }
+    fn peek_nth(&self, n: usize) -> Option<&Token> {
+        // peek_nth(1) is equivalent to peek()
+        self.contents.get(self.index + n - 1)
+    }
+
+    fn next(&mut self) -> Option<&Token> {
+        self.index += 1;
+        self.contents.get(self.index - 1)
+    }
+}
+
+pub fn generate_program_ast(tokens: Vec<Token>) -> Program {
+    let mut tokens = TokenCursor::new(tokens);
+    let f = generate_function_ast(&mut tokens);
+    assert!(tokens.next() == None);
     Program { function: f }
 }
 
-pub fn generate_function_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Function {
+pub fn generate_function_ast(tokens: &mut TokenCursor) -> Function {
     let function_name;
-    let statement;
 
     match tokens.peek() {
         Some(Token::IntT) => {
@@ -131,7 +157,11 @@ pub fn generate_function_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Function
         }
     }
 
-    statement = generate_statement_ast(tokens);
+    let mut statements = Vec::new();
+
+    while tokens.peek().is_some() && *tokens.peek().unwrap() != Token::CloseBrace {
+        statements.push(generate_statement_ast(tokens));
+    }
 
     match tokens.peek() {
         Some(Token::CloseBrace) => {
@@ -144,40 +174,72 @@ pub fn generate_function_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Function
 
     Function {
         name: function_name,
-        statement,
+        statements,
     }
 }
 
-pub fn generate_statement_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Statement {
+pub fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
     let expr;
 
     match tokens.peek() {
         Some(Token::Return) => {
             tokens.next();
-        }
-        _ => {
-            panic!()
-        }
-    }
 
-    expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
+            expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
 
-    match tokens.peek() {
-        Some(Token::Semicolon) => {
+            dbg!(tokens.peek());
+            assert!(tokens.next() == Some(&Token::Semicolon));
+            return Statement::Return(expr);
+        }
+        Some(Token::IntT) => {
             tokens.next();
+            let decl_identifier;
+            let mut optional_expr = None;
+            match tokens.next() {
+                Some(Token::Identifier { val }) => {
+                    decl_identifier = val.clone();
+                }
+                _ => {
+                    panic!()
+                }
+            }
+
+            if tokens.peek() == Some(&Token::AssignmentEquals) {
+                tokens.next();
+                optional_expr = Some(generate_expr_ast(
+                    tokens,
+                    BinOpPrecedenceLevel::lowest_level(),
+                ))
+            }
+            assert!(tokens.next() == Some(&Token::Semicolon));
+            return Statement::Declare(decl_identifier, optional_expr);
         }
         _ => {
-            panic!()
+            expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
+            assert!(tokens.next() == Some(&Token::Semicolon));
+            return Statement::Expr(expr);
         }
     }
-
-    Statement::Return(expr)
 }
 
 pub fn generate_expr_ast(
-    tokens: &mut Peekable<IntoIter<Token>>,
+    tokens: &mut TokenCursor,
     curr_operator_precedence: BinOpPrecedenceLevel,
 ) -> Expr {
+    if curr_operator_precedence == BinOpPrecedenceLevel::lowest_level() {
+        // handle assignment of variables
+        if let Some(Token::Identifier { val }) = tokens.peek() {
+            let val = val.clone();
+            if tokens.peek_nth(2) == Some(&Token::AssignmentEquals) {
+                tokens.next();
+                tokens.next();
+
+                let rhs_expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
+                return Expr::Assign(val, Box::new(rhs_expr));
+            }
+        }
+    }
+
     let mut expr: Expr;
     let next_operator_precedence_option = curr_operator_precedence.next_level();
 
@@ -208,14 +270,14 @@ pub fn generate_expr_ast(
     return expr;
 }
 
-pub fn generate_factor_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Expr {
+pub fn generate_factor_ast(tokens: &mut TokenCursor) -> Expr {
     match tokens.peek() {
         Some(Token::OpenParen) => {
             tokens.next();
 
             let expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
 
-            assert!(tokens.next() == Some(Token::CloseParen));
+            assert!(tokens.next() == Some(&Token::CloseParen));
             return expr;
         }
         Some(token) if token.to_un_op().is_some() => {
@@ -230,6 +292,14 @@ pub fn generate_factor_ast(tokens: &mut Peekable<IntoIter<Token>>) -> Expr {
 
             return Expr::Int(val_i32);
         }
-        _ => panic!(),
+        Some(Token::Identifier { val }) => {
+            let val = val.clone();
+            tokens.next();
+            return Expr::Var(val);
+        }
+        _ => {
+            dbg!(tokens.peek());
+            panic!();
+        }
     }
 }

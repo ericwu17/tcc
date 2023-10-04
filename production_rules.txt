@@ -1,11 +1,15 @@
 <program> ::= <function>
-<function> ::= "int" <id> "(" ")" "{" <statement> "}"
-<statement> ::= "return" <exp> ";"
-<exp> ::= <logical-or-term> { "||" <logical-or-term> }
+<function> ::= "int" <id> "(" ")" "{" { <statement> } "}"
+<statement> ::= "return" <exp> ";" | <exp> ";" | "int" <id> [ = <exp>] ";" 
+
+<exp> ::= <id> "=" <exp> | <exp-unit> 
+
+<exp-unit> ::= <logical-or-term> { "||" <logical-or-term> }
 <logical-or-term> ::= <logical-and-term> { "&&" <logical-and-term> }
 <logical-and-term> ::= <comparison-term> { ("!=" | "==") <comparison-term> }
 <comparison-term> ::= <ordering-term> { ("<" | ">" | "<=" | ">=") <ordering-term> }
 <ordering-term> ::= <term> { ("+" | "-") <term> }
 <term> ::= <factor> { ("*" | "/") <factor> }
-<factor> ::= "(" <exp> ")" | <unary_op> <factor> | <int>
+<factor> ::= "(" <exp> ")" | <unary_op> <factor> | <int> | <id>
+
 <unary_op> ::= "!" | "~" | "-"

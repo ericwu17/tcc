@@ -15,6 +15,7 @@ pub enum Token {
     Return,
     IntT,
     Semicolon,
+    AssignmentEquals,
     Op(Op),
 }
 
@@ -123,6 +124,9 @@ pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
             cursor.next();
             cursor.next();
             tokens.push(Token::Op(op));
+        } else if next_char == '=' {
+            cursor.next();
+            tokens.push(Token::AssignmentEquals);
         } else if let Some(op) = char_to_operator(next_char) {
             cursor.next();
             tokens.push(Token::Op(op));

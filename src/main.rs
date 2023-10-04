@@ -41,7 +41,7 @@ fn main() {
 
     let tokens = get_tokens(contents);
     dbg!(&tokens);
-    let program_ast = generate_program_ast(&mut tokens.into_iter().peekable());
+    let program_ast = generate_program_ast(tokens);
     dbg!(&program_ast);
     let asm_code: String = generate_code(program_ast);
 
