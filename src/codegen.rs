@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::parser::BinOp;
 use crate::parser::Expr;
 use crate::parser::Function;
@@ -88,19 +90,55 @@ pub fn generate_code(program: Program) -> String {
     assert!(program.function.name == "main");
 
     let routine = generate_function_code(program.function);
-    routine.to_asm_code()
-}
-
-fn generate_function_code(func: Function) -> X86Routine {
-    let result = generate_statement_code(func.statement);
+    result.push_str(&routine.to_asm_code());
 
     return result;
 }
 
-fn generate_statement_code(statement: Statement) -> X86Routine {
+fn generate_function_code(func: Function) -> X86Routine {
+    let mut result = X86Routine::new();
+    result.push(X86Instruction::single_op_instruction("push", "rbp"));
+    result.push(X86Instruction::double_op_instruction("mov", "rbp", "rsp")); // rbp now points to base of stack frame, and will remain pointing there for the rest of the function
+
+    // first, we generate code to detect all variable declarations and increment rsp by the correct amount.
+    let mut variables = Vec::new();
+    for statement in &func.statements {
+        if let Statement::Declare(var_name, _) = statement {
+            variables.push(var_name);
+        }
+    }
+
+    // every variable gets 8 bytes of space, so we allocate it here
+    let space_needed = variables.len() * 8;
+    result.push(X86Instruction::double_op_instruction(
+        "add",
+        "rsp",
+        Box::leak(format!("{}", space_needed).into_boxed_str()),
+    ));
+    let mut variable_map: HashMap<String, &'static str> = HashMap::new();
+    for (index, var_name) in variables.into_iter().enumerate() {
+        let offset = Box::leak(format!("{}", (index + 1) * 8).into_boxed_str());
+        variable_map.insert(var_name.clone(), offset);
+    }
+
+    for statement in &func.statements {
+        result.extend(generate_statement_code(statement, &variable_map));
+    }
+
+    // let result = generate_statement_code(func.statement);
+    result.push(X86Instruction::double_op_instruction("mov", "rsp", "rbp")); // restore rsp to what it was before this function was called
+    result.push(X86Instruction::single_op_instruction("pop", "rbp")); // rbp now points to base of stack frame of outer function
+
+    return result;
+}
+
+fn generate_statement_code(
+    statement: &Statement,
+    variable_map: &HashMap<String, &'static str>,
+) -> X86Routine {
     match statement {
         Statement::Return(expr) => {
-            let mut result = generate_expr_code(expr);
+            let mut result = generate_expr_code(expr, variable_map);
             result.push(X86Instruction::single_op_instruction("pop", "rdi"));
             result.push(X86Instruction::double_op_instruction("mov", "rax", "60"));
             result.push(X86Instruction {
@@ -109,11 +147,65 @@ fn generate_statement_code(statement: Statement) -> X86Routine {
             });
             return result;
         }
+        Statement::Declare(var_name, opt_value) => {
+            match opt_value {
+                Some(expr) => {
+                    let var_location = Box::leak(
+                        format!("[rbp - {}]", variable_map.get(var_name).unwrap()).into_boxed_str(),
+                    );
+
+                    let mut result = generate_expr_code(expr, variable_map);
+                    result.push(X86Instruction::single_op_instruction("pop", "rdi"));
+                    result.push(X86Instruction::double_op_instruction(
+                        "mov",
+                        var_location,
+                        "rdi",
+                    ));
+                    return result;
+                }
+                None => {
+                    return X86Routine::new();
+                }
+            };
+        }
+        Statement::Expr(expr) => {
+            // generate the code, pop the value off the stack, and do nothing.
+            let mut result = generate_expr_code(expr, variable_map);
+            result.push(X86Instruction::single_op_instruction("pop", "rdi"));
+            return result;
+        }
     }
 }
 
-fn generate_expr_code(expr: Expr) -> X86Routine {
+fn generate_expr_code(expr: &Expr, variable_map: &HashMap<String, &'static str>) -> X86Routine {
     match expr {
+        Expr::Var(var_name) => {
+            let var_location = Box::leak(
+                format!("[rbp - {}]", variable_map.get(var_name).unwrap()).into_boxed_str(),
+            );
+            let mut result = X86Routine::new();
+            result.push(X86Instruction::double_op_instruction(
+                "mov",
+                "rdi",
+                var_location,
+            ));
+            result.push(X86Instruction::single_op_instruction("push", "rdi"));
+            return result;
+        }
+        Expr::Assign(var_name, expr) => {
+            let var_location = Box::leak(
+                format!("[rbp - {}]", variable_map.get(var_name).unwrap()).into_boxed_str(),
+            );
+
+            let mut result = generate_expr_code(expr, variable_map);
+            result.push(X86Instruction::single_op_instruction("pop", "rdi"));
+            result.push(X86Instruction::double_op_instruction(
+                "mov",
+                var_location,
+                "rdi",
+            ));
+            return result;
+        }
         Expr::Int(v) => {
             let operand = Box::leak(format!("{}", v).into_boxed_str());
             return X86Routine::single_instruction("push", vec![operand]);
@@ -131,15 +223,15 @@ fn generate_expr_code(expr: Expr) -> X86Routine {
                 },
             };
 
-            let mut code = generate_expr_code(*inner_expr);
+            let mut code = generate_expr_code(inner_expr, variable_map);
             code.push(X86Instruction::single_op_instruction("pop", "rdi"));
             code.extend(action);
             code.push(X86Instruction::single_op_instruction("push", "rdi"));
             return code;
         }
         Expr::BinOp(op, expr1, expr2) => {
-            let expr_1_code = generate_expr_code(*expr1);
-            let expr_2_code = generate_expr_code(*expr2);
+            let expr_1_code = generate_expr_code(expr1, variable_map);
+            let expr_2_code = generate_expr_code(expr2, variable_map);
 
             let mut code = X86Routine::new();
             code.extend(expr_1_code);
@@ -152,7 +244,7 @@ fn generate_expr_code(expr: Expr) -> X86Routine {
     }
 }
 
-fn generate_binop_code(op: BinOp) -> X86Routine {
+fn generate_binop_code(op: &BinOp) -> X86Routine {
     let mut code = X86Routine::new();
     code.push(X86Instruction::single_op_instruction("pop", "rsi")); // expr 2 in rsi
     code.push(X86Instruction::single_op_instruction("pop", "rdi")); // expr 1 in rdi
