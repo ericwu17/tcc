@@ -25,6 +25,8 @@ struct Cli {
     /// Skip the assembly and link step of compilation, only generating the assembly file
     #[arg(short = 'n', long = "no-assemble")]
     no_assemble: bool,
+    #[arg(short = 'd', long = "debug")]
+    debug: bool,
 }
 
 fn main() {
@@ -40,9 +42,13 @@ fn main() {
         .expect(&format!("error reading file: {}", &input_filepath));
 
     let tokens = get_tokens(contents);
-    dbg!(&tokens);
+    if cli.debug {
+        dbg!(&tokens);
+    }
     let program_ast = generate_program_ast(tokens);
-    dbg!(&program_ast);
+    if cli.debug {
+        dbg!(&program_ast);
+    }
     let asm_code: String = generate_code(program_ast);
 
     File::create(ASM_FILE_NAME)
