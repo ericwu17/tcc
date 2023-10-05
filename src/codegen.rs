@@ -270,6 +270,28 @@ fn generate_expr_code(expr: &Expr, variable_map: &HashMap<String, &'static str>)
 
             return code;
         }
+        Expr::Ternary(decision_expr, expr1, expr2) => {
+            let mut result = generate_expr_code(decision_expr, variable_map);
+
+            let label_1 = get_new_label();
+            let label_end = get_new_label();
+            result.push(X86Instruction::single_op_instruction("pop", "rdi"));
+            result.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
+            result.push(X86Instruction::single_op_instruction("je", label_1));
+            result.extend(generate_expr_code(expr1, variable_map));
+            result.push(X86Instruction::single_op_instruction("jmp", label_end));
+            result.push(X86Instruction {
+                operation: label_1,
+                operands: vec![],
+            });
+            result.extend(generate_expr_code(expr2, variable_map));
+            result.push(X86Instruction {
+                operation: label_end,
+                operands: vec![],
+            });
+
+            return result;
+        }
     }
 }
 

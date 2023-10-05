@@ -75,6 +75,7 @@ pub enum Expr {
     Assign(String, Box<Expr>),
     UnOp(UnOp, Box<Expr>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
+    Ternary(Box<Expr>, Box<Expr>, Box<Expr>),
 }
 
 pub struct TokenCursor {
@@ -187,7 +188,6 @@ pub fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
 
             expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
 
-            dbg!(tokens.peek());
             assert!(tokens.next() == Some(&Token::Semicolon));
             return Statement::Return(expr);
         }
@@ -250,6 +250,24 @@ pub fn generate_expr_ast(
     }
 
     while tokens.peek().is_some() {
+        if &Token::QuestionMark == tokens.peek().unwrap()
+            && curr_operator_precedence == BinOpPrecedenceLevel::lowest_level()
+        {
+            // handle ternary case. Note that ternaries have the lowest precedence level, so we need to check the precedence level.
+            tokens.next();
+            let first_next_expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
+
+            assert!(tokens.next() == Some(&Token::Colon));
+
+            let second_expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
+
+            return Expr::Ternary(
+                Box::new(expr),
+                Box::new(first_next_expr),
+                Box::new(second_expr),
+            );
+        }
+
         if let Some(next_op) = tokens
             .peek()
             .unwrap()
