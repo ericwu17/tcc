@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use crate::parser::BinOp;
 use crate::parser::Expr;
-use crate::parser::Function;
 use crate::parser::Program;
 use crate::parser::Statement;
 use crate::parser::UnOp;
@@ -98,71 +97,112 @@ pub fn generate_code(program: Program) -> String {
 
     assert!(program.function.name == "main");
 
-    let routine = generate_function_code(program.function);
+    let mut var_index: usize = 1; // this is the offset, in units of 8-bytes, of the memory location of the next variable from rbp.
+    let routine =
+        generate_compound_stmt_code(&program.function.body, true, &mut var_index, &Vec::new());
     result.push_str(&routine.to_asm_code());
 
     return result;
 }
 
-fn generate_function_code(func: Function) -> X86Routine {
+fn generate_compound_stmt_code(
+    stmts: &Vec<Statement>,
+    is_function_body: bool,
+    curr_var_index: &mut usize,
+    curr_var_map_list: &Vec<HashMap<String, usize>>,
+) -> X86Routine {
+    // is_function_body is true if this compound statement is the body of a function.
+    // this flag is needed to conditionally insert function prologue and epilogue
     let mut result = X86Routine::new();
-    result.push(X86Instruction::single_op_instruction("push", "rbp"));
-    result.push(X86Instruction::double_op_instruction("mov", "rbp", "rsp")); // rbp now points to base of stack frame, and will remain pointing there for the rest of the function
 
-    // first, we generate code to detect all variable declarations and increment rsp by the correct amount.
-    let mut variables = Vec::new();
-    for statement in &func.statements {
-        if let Statement::Declare(var_name, _) = statement {
-            variables.push(var_name);
-        }
-    }
+    if is_function_body {
+        // FUNCTION PROLOGUE
+        result.push(X86Instruction::single_op_instruction("push", "rbp"));
+        result.push(X86Instruction::double_op_instruction("mov", "rbp", "rsp")); // rbp now points to base of stack frame, and will remain pointing there for the rest of the function
 
-    // every variable gets 8 bytes of space, so we allocate it here
-    let space_needed = variables.len() * 8;
-    result.push(X86Instruction::double_op_instruction(
-        "add",
-        "rsp",
-        Box::leak(format!("{}", space_needed).into_boxed_str()),
-    ));
-    let mut variable_map: HashMap<String, &'static str> = HashMap::new();
-    for (index, var_name) in variables.into_iter().enumerate() {
-        let offset = Box::leak(format!("{}", (index + 1) * 8).into_boxed_str());
-        variable_map.insert(var_name.clone(), offset);
-    }
-
-    for statement in &func.statements {
-        result.extend(generate_statement_code(statement, &variable_map));
-    }
-    let mut last_statement_is_return = false;
-    if !func.statements.is_empty() {
-        if let Statement::Return(_) = func.statements.get(func.statements.len() - 1).unwrap() {
-            last_statement_is_return = true;
-        }
-    }
-    if !last_statement_is_return {
-        result.extend(generate_statement_code(
-            &Statement::Return(Expr::Int(0)),
-            &variable_map,
+        // every variable gets 8 bytes of space, so we allocate it here
+        let space_needed = count_variable_decls(&stmts) * 8;
+        result.push(X86Instruction::double_op_instruction(
+            "add",
+            "rsp",
+            Box::leak(format!("{}", space_needed).into_boxed_str()),
         ));
     }
 
-    // let result = generate_statement_code(func.statement);
-    result.push(X86Instruction::double_op_instruction("mov", "rsp", "rbp")); // restore rsp to what it was before this function was called
-    result.push(X86Instruction::single_op_instruction("pop", "rbp")); // rbp now points to base of stack frame of outer function
-    result.push(X86Instruction {
-        operation: "ret",
-        operands: vec![],
-    });
+    let this_scopes_variable_map: HashMap<String, usize> = HashMap::new();
+    let mut new_var_map_list = curr_var_map_list.clone();
+    new_var_map_list.push(this_scopes_variable_map);
+    for statement in stmts {
+        result.extend(generate_statement_code(
+            statement,
+            &mut new_var_map_list,
+            curr_var_index,
+        ));
+    }
+
+    if is_function_body {
+        let mut need_to_insert_ret_0 = is_function_body;
+        if !stmts.is_empty() {
+            if let Statement::Return(_) = stmts.get(stmts.len() - 1).unwrap() {
+                need_to_insert_ret_0 = false;
+            }
+        }
+        if need_to_insert_ret_0 {
+            result.extend(generate_statement_code(
+                &Statement::Return(Expr::Int(0)),
+                &mut new_var_map_list,
+                curr_var_index,
+            ));
+        }
+
+        // FUNCTION EPILOGUE
+        result.push(X86Instruction::double_op_instruction("mov", "rsp", "rbp")); // restore rsp to what it was before this function was called
+        result.push(X86Instruction::single_op_instruction("pop", "rbp")); // rbp now points to base of stack frame of outer function
+        result.push(X86Instruction {
+            operation: "ret",
+            operands: vec![],
+        });
+    }
     return result;
+}
+
+fn count_variable_decls(stmts: &Vec<Statement>) -> usize {
+    let mut count = 0;
+    for stmt in stmts {
+        match stmt {
+            Statement::CompoundStmt(inner_stmts) => {
+                count += count_variable_decls(inner_stmts);
+            }
+            Statement::Declare(_, _) => {
+                count += 1;
+            }
+            _ => {}
+        }
+    }
+    count
+}
+
+fn resolve_variable(
+    var_name: &String,
+    curr_variable_map_list: &Vec<HashMap<String, usize>>,
+) -> &'static str {
+    // go through most local scopes first
+    for var_map in curr_variable_map_list.iter().rev() {
+        if let Some(offset) = var_map.get(var_name) {
+            return Box::leak(format!("{}", *offset * 8).into_boxed_str());
+        }
+    }
+    panic!("undeclared variable: {}", var_name);
 }
 
 fn generate_statement_code(
     statement: &Statement,
-    variable_map: &HashMap<String, &'static str>,
+    var_map_list: &mut Vec<HashMap<String, usize>>,
+    curr_var_index: &mut usize,
 ) -> X86Routine {
     match statement {
         Statement::Return(expr) => {
-            let mut result = generate_expr_code(expr, variable_map);
+            let mut result = generate_expr_code(expr, var_map_list);
             result.push(X86Instruction::single_op_instruction("pop", "rdi"));
             result.push(X86Instruction::double_op_instruction("mov", "rax", "60"));
             result.push(X86Instruction {
@@ -172,13 +212,26 @@ fn generate_statement_code(
             return result;
         }
         Statement::Declare(var_name, opt_value) => {
+            if let Statement::Declare(var_name, _) = statement {
+                // let offset = Box::leak(format!("{}", *curr_var_index * 8).into_boxed_str());
+                let last_elem_index = var_map_list.len() - 1;
+                let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
+                if this_scopes_variable_map.get(var_name).is_some() {
+                    panic!("doubly declared variable: {}", var_name);
+                }
+
+                this_scopes_variable_map.insert(var_name.clone(), *curr_var_index);
+                *curr_var_index += 1;
+            }
+
             match opt_value {
                 Some(expr) => {
                     let var_location = Box::leak(
-                        format!("[rbp - {}]", variable_map.get(var_name).unwrap()).into_boxed_str(),
+                        format!("[rbp - {}]", resolve_variable(var_name, var_map_list))
+                            .into_boxed_str(),
                     );
 
-                    let mut result = generate_expr_code(expr, variable_map);
+                    let mut result = generate_expr_code(expr, var_map_list);
                     result.push(X86Instruction::single_op_instruction("pop", "rdi"));
                     result.push(X86Instruction::double_op_instruction(
                         "mov",
@@ -194,18 +247,22 @@ fn generate_statement_code(
         }
         Statement::Expr(expr) => {
             // generate the code, pop the value off the stack, and do nothing.
-            let mut result = generate_expr_code(expr, variable_map);
+            let mut result = generate_expr_code(expr, var_map_list);
             result.push(X86Instruction::single_op_instruction("pop", "rdi"));
+            return result;
+        }
+        Statement::CompoundStmt(stmts) => {
+            let result = generate_compound_stmt_code(stmts, false, curr_var_index, var_map_list);
             return result;
         }
     }
 }
 
-fn generate_expr_code(expr: &Expr, variable_map: &HashMap<String, &'static str>) -> X86Routine {
+fn generate_expr_code(expr: &Expr, var_map_list: &Vec<HashMap<String, usize>>) -> X86Routine {
     match expr {
         Expr::Var(var_name) => {
             let var_location = Box::leak(
-                format!("[rbp - {}]", variable_map.get(var_name).unwrap()).into_boxed_str(),
+                format!("[rbp - {}]", resolve_variable(var_name, var_map_list)).into_boxed_str(),
             );
             let mut result = X86Routine::new();
             result.push(X86Instruction::double_op_instruction(
@@ -218,10 +275,10 @@ fn generate_expr_code(expr: &Expr, variable_map: &HashMap<String, &'static str>)
         }
         Expr::Assign(var_name, expr) => {
             let var_location = Box::leak(
-                format!("[rbp - {}]", variable_map.get(var_name).unwrap()).into_boxed_str(),
+                format!("[rbp - {}]", resolve_variable(&var_name, var_map_list)).into_boxed_str(),
             );
 
-            let mut result = generate_expr_code(expr, variable_map);
+            let mut result = generate_expr_code(expr, var_map_list);
             result.push(X86Instruction::single_op_instruction("pop", "rdi"));
             result.push(X86Instruction::double_op_instruction(
                 "mov",
@@ -248,7 +305,7 @@ fn generate_expr_code(expr: &Expr, variable_map: &HashMap<String, &'static str>)
                 },
             };
 
-            let mut code = generate_expr_code(inner_expr, variable_map);
+            let mut code = generate_expr_code(inner_expr, var_map_list);
             code.push(X86Instruction::single_op_instruction("pop", "rdi"));
             code.extend(action);
             code.push(X86Instruction::single_op_instruction("push", "rdi"));
@@ -256,11 +313,11 @@ fn generate_expr_code(expr: &Expr, variable_map: &HashMap<String, &'static str>)
         }
         Expr::BinOp(op, expr1, expr2) => {
             if op == &BinOp::LogicalAnd || op == &BinOp::LogicalOr {
-                return generate_short_circuiting_binop_code(op, expr1, expr2, variable_map);
+                return generate_short_circuiting_binop_code(op, expr1, expr2, var_map_list);
             }
 
-            let expr_1_code = generate_expr_code(expr1, variable_map);
-            let expr_2_code = generate_expr_code(expr2, variable_map);
+            let expr_1_code = generate_expr_code(expr1, var_map_list);
+            let expr_2_code = generate_expr_code(expr2, var_map_list);
 
             let mut code = X86Routine::new();
             code.extend(expr_1_code);
@@ -271,20 +328,20 @@ fn generate_expr_code(expr: &Expr, variable_map: &HashMap<String, &'static str>)
             return code;
         }
         Expr::Ternary(decision_expr, expr1, expr2) => {
-            let mut result = generate_expr_code(decision_expr, variable_map);
+            let mut result = generate_expr_code(decision_expr, var_map_list);
 
             let label_1 = get_new_label();
             let label_end = get_new_label();
             result.push(X86Instruction::single_op_instruction("pop", "rdi"));
             result.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
             result.push(X86Instruction::single_op_instruction("je", label_1));
-            result.extend(generate_expr_code(expr1, variable_map));
+            result.extend(generate_expr_code(expr1, var_map_list));
             result.push(X86Instruction::single_op_instruction("jmp", label_end));
             result.push(X86Instruction {
                 operation: label_1,
                 operands: vec![],
             });
-            result.extend(generate_expr_code(expr2, variable_map));
+            result.extend(generate_expr_code(expr2, var_map_list));
             result.push(X86Instruction {
                 operation: label_end,
                 operands: vec![],
@@ -365,19 +422,19 @@ fn generate_short_circuiting_binop_code(
     op: &BinOp,
     expr1: &Expr,
     expr2: &Expr,
-    variable_map: &HashMap<String, &'static str>,
+    var_map_list: &Vec<HashMap<String, usize>>,
 ) -> X86Routine {
     match op {
         BinOp::LogicalAnd => {
             let label1 = get_new_label();
             let label2 = get_new_label();
 
-            let mut result = generate_expr_code(expr1, variable_map);
+            let mut result = generate_expr_code(expr1, var_map_list);
             result.push(X86Instruction::single_op_instruction("pop", "rdi"));
             result.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
             result.push(X86Instruction::single_op_instruction("je", label1));
 
-            result.extend(generate_expr_code(expr2, variable_map));
+            result.extend(generate_expr_code(expr2, var_map_list));
 
             result.push(X86Instruction::single_op_instruction("pop", "rdi"));
             result.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
@@ -400,12 +457,12 @@ fn generate_short_circuiting_binop_code(
             let label1 = get_new_label();
             let label2 = get_new_label();
 
-            let mut result = generate_expr_code(expr1, variable_map);
+            let mut result = generate_expr_code(expr1, var_map_list);
             result.push(X86Instruction::single_op_instruction("pop", "rdi"));
             result.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
             result.push(X86Instruction::single_op_instruction("jne", label1));
 
-            result.extend(generate_expr_code(expr2, variable_map));
+            result.extend(generate_expr_code(expr2, var_map_list));
 
             result.push(X86Instruction::single_op_instruction("pop", "rdi"));
             result.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));

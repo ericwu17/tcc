@@ -8,13 +8,14 @@ pub struct Program {
 #[derive(Debug)]
 pub struct Function {
     pub name: String,
-    pub statements: Vec<Statement>,
+    pub body: Vec<Statement>,
 }
 
 #[derive(Debug)]
 pub enum Statement {
     Return(Expr),
     Declare(String, Option<Expr>),
+    CompoundStmt(Vec<Statement>),
     Expr(Expr),
 }
 
@@ -149,34 +150,24 @@ pub fn generate_function_ast(tokens: &mut TokenCursor) -> Function {
         }
     }
 
-    match tokens.peek() {
-        Some(Token::OpenBrace) => {
-            tokens.next();
-        }
-        _ => {
-            panic!()
-        }
-    }
+    let body = generate_compound_stmt_ast(tokens);
 
+    Function {
+        name: function_name,
+        body,
+    }
+}
+
+pub fn generate_compound_stmt_ast(tokens: &mut TokenCursor) -> Vec<Statement> {
+    assert_eq!(tokens.next(), Some(&Token::OpenBrace));
     let mut statements = Vec::new();
 
     while tokens.peek().is_some() && *tokens.peek().unwrap() != Token::CloseBrace {
         statements.push(generate_statement_ast(tokens));
     }
 
-    match tokens.peek() {
-        Some(Token::CloseBrace) => {
-            tokens.next();
-        }
-        _ => {
-            panic!()
-        }
-    }
-
-    Function {
-        name: function_name,
-        statements,
-    }
+    assert_eq!(tokens.next(), Some(&Token::CloseBrace));
+    return statements;
 }
 
 pub fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
@@ -213,6 +204,11 @@ pub fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
             }
             assert!(tokens.next() == Some(&Token::Semicolon));
             return Statement::Declare(decl_identifier, optional_expr);
+        }
+        Some(Token::OpenBrace) => {
+            let compound_stmt = generate_compound_stmt_ast(tokens);
+            // note that a compound statement does not end in a semicolon, so there is no need here to consume a semicolon.
+            return Statement::CompoundStmt(compound_stmt);
         }
         _ => {
             expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
