@@ -2,7 +2,7 @@ pub mod operator;
 
 use operator::{char_to_operator, chars_to_operator, Op};
 
-use crate::parser::{BinOp, BinOpPrecedenceLevel, UnOp};
+use crate::parser::expr_parser::{BinOp, BinOpPrecedenceLevel, UnOp};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token {
