@@ -21,6 +21,9 @@ pub enum Token {
     Colon,
     If,
     Else,
+    While,
+    Break,
+    Continue,
 }
 
 impl Token {
@@ -144,27 +147,30 @@ pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
             // ignore all whitespace
             cursor.next();
         } else if next_char.is_digit(10) {
+            // handle an integer literal
             let mut val = String::new();
             while cursor.peek().is_some() && (*cursor.peek().unwrap()).is_ascii_alphanumeric() {
                 val.push(*cursor.next().unwrap());
             }
             tokens.push(Token::IntLit { val });
         } else if next_char.is_ascii_alphabetic() {
+            // handle an identifier or C keyword
             let mut val = String::new();
-            while cursor.peek().is_some() && (*cursor.peek().unwrap()).is_ascii_alphanumeric() {
+            while cursor.peek().is_some() && (*cursor.peek().unwrap()).is_ascii_alphanumeric()
+                || (*cursor.peek().unwrap()) == '_'
+            {
                 val.push(*cursor.next().unwrap());
             }
 
-            if val == "return" {
-                tokens.push(Token::Return);
-            } else if val == "int" {
-                tokens.push(Token::IntT);
-            } else if val == "if" {
-                tokens.push(Token::If)
-            } else if val == "else" {
-                tokens.push(Token::Else)
-            } else {
-                tokens.push(Token::Identifier { val });
+            match val.as_str() {
+                "return" => tokens.push(Token::Return),
+                "int" => tokens.push(Token::IntT),
+                "if" => tokens.push(Token::If),
+                "else" => tokens.push(Token::Else),
+                "while" => tokens.push(Token::While),
+                "break" => tokens.push(Token::Break),
+                "continue" => tokens.push(Token::Continue),
+                _ => tokens.push(Token::Identifier { val }),
             }
         } else {
             println!("you messed up, unrecognized character {}", next_char);

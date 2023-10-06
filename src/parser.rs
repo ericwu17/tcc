@@ -15,10 +15,13 @@ pub struct Function {
 
 #[derive(Debug)]
 pub enum Statement {
+    Continue,
+    Break,
     Return(Expr),
     Declare(String, Option<Expr>),
     CompoundStmt(Vec<Statement>),
     If(Expr, Box<Statement>, Option<Box<Statement>>),
+    While(Expr, Box<Statement>),
     Expr(Expr),
 }
 
@@ -91,6 +94,12 @@ fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
     let expr;
 
     match tokens.peek() {
+        Some(Token::Continue) => {
+            return Statement::Continue;
+        }
+        Some(Token::Break) => {
+            return Statement::Break;
+        }
         Some(Token::Return) => {
             tokens.next(); // consume the "return"
 
@@ -143,6 +152,17 @@ fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
                 Box::new(taken_branch_stmt),
                 not_taken_branch_stmt,
             );
+        }
+        Some(Token::While) => {
+            // consume the "while"
+            tokens.next();
+
+            assert_eq!(tokens.next(), Some(&Token::OpenParen));
+            let conditional = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
+            assert_eq!(tokens.next(), Some(&Token::CloseParen));
+
+            let body = generate_statement_ast(tokens);
+            return Statement::While(conditional, Box::new(body));
         }
         _ => {
             expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());

@@ -258,6 +258,15 @@ fn generate_statement_code(
                 curr_var_index,
             );
         }
+        Statement::While(condition, body) => {
+            return generate_while_loop_code(condition, body, var_map_list, curr_var_index);
+        }
+        Statement::Break => {
+            todo!();
+        }
+        Statement::Continue => {
+            todo!();
+        }
     }
 }
 
@@ -300,6 +309,28 @@ fn generate_if_statement_code(
         result.extend(not_taken_routine);
         result.push(X86Instruction::no_operands_instr(&label_end));
     }
+
+    result
+}
+
+fn generate_while_loop_code(
+    condition: &Expr,
+    body: &Statement,
+    var_map_list: &mut Vec<HashMap<String, usize>>,
+    curr_var_index: &mut usize,
+) -> X86Routine {
+    let start_label = get_new_label();
+    let end_label = get_new_label();
+
+    let mut result = X86Routine::new();
+    result.push(X86Instruction::no_operands_instr(&start_label));
+    result.extend(generate_expr_code(condition, var_map_list));
+    result.push(X86Instruction::single_op_instruction("pop", "rdi"));
+    result.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
+    result.push(X86Instruction::single_op_instruction("je", &end_label));
+    result.extend(generate_statement_code(body, var_map_list, curr_var_index));
+    result.push(X86Instruction::single_op_instruction("jmp", &start_label));
+    result.push(X86Instruction::no_operands_instr(&end_label));
 
     result
 }
