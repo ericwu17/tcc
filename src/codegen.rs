@@ -126,7 +126,7 @@ fn generate_compound_stmt_code(
         // every variable gets 8 bytes of space, so we allocate it here
         let space_needed = count_variable_decls(&stmts) * 8;
         result.push(X86Instruction::double_op_instruction(
-            "add",
+            "sub",
             "rsp",
             &format!("{}", space_needed),
         ));
