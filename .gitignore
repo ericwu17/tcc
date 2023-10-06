@@ -4,3 +4,4 @@
 *.out
 gcc_exec
 test.c
+out.o
