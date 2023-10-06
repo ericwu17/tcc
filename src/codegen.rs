@@ -169,17 +169,27 @@ fn generate_compound_stmt_code(
 fn count_variable_decls(stmts: &Vec<Statement>) -> usize {
     let mut count = 0;
     for stmt in stmts {
-        match stmt {
-            Statement::CompoundStmt(inner_stmts) => {
-                count += count_variable_decls(inner_stmts);
-            }
-            Statement::Declare(_, _) => {
-                count += 1;
-            }
-            _ => {}
-        }
+        count += count_stmt_variable_decls(stmt);
     }
     count
+}
+fn count_stmt_variable_decls(stmt: &Statement) -> usize {
+    match stmt {
+        Statement::CompoundStmt(inner_stmts) => count_variable_decls(inner_stmts),
+        Statement::Declare(_, _) => 1,
+        Statement::While(_, body) => count_stmt_variable_decls(body),
+        Statement::Continue => 0,
+        Statement::Break => 0,
+        Statement::Return(_) => 0,
+        Statement::If(_, taken, optional_not_taken) => {
+            let mut count = count_stmt_variable_decls(taken);
+            if let Some(not_taken) = optional_not_taken {
+                count += count_stmt_variable_decls(not_taken)
+            }
+            count
+        }
+        Statement::Expr(_) => 0,
+    }
 }
 
 fn resolve_variable(
