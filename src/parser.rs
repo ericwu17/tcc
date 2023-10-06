@@ -18,6 +18,7 @@ pub enum Statement {
     Return(Expr),
     Declare(String, Option<Expr>),
     CompoundStmt(Vec<Statement>),
+    If(Expr, Box<Statement>, Option<Box<Statement>>),
     Expr(Expr),
 }
 
@@ -122,6 +123,26 @@ fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
             let compound_stmt = generate_compound_stmt_ast(tokens);
             // note that a compound statement does not end in a semicolon, so there is no need here to consume a semicolon.
             return Statement::CompoundStmt(compound_stmt);
+        }
+        Some(Token::If) => {
+            // consume the "if"
+            tokens.next();
+            assert_eq!(tokens.next(), Some(&Token::OpenParen));
+            let conditional_expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
+            assert_eq!(tokens.next(), Some(&Token::CloseParen));
+            let taken_branch_stmt = generate_statement_ast(tokens);
+            let mut not_taken_branch_stmt = None;
+            if tokens.peek() == Some(&Token::Else) {
+                // consume the "else"
+                tokens.next();
+                not_taken_branch_stmt = Some(Box::new(generate_statement_ast(tokens)));
+            }
+
+            return Statement::If(
+                conditional_expr,
+                Box::new(taken_branch_stmt),
+                not_taken_branch_stmt,
+            );
         }
         _ => {
             expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());

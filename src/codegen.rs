@@ -249,6 +249,15 @@ fn generate_statement_code(
             let result = generate_compound_stmt_code(stmts, false, curr_var_index, var_map_list);
             return result;
         }
+        Statement::If(condition, taken, not_taken) => {
+            return generate_if_statement_code(
+                condition,
+                taken,
+                not_taken.as_deref(),
+                var_map_list,
+                curr_var_index,
+            );
+        }
     }
 }
 
@@ -258,4 +267,39 @@ fn get_new_label() -> String {
 
         return format!(".L{}", LABEL_COUNT);
     }
+}
+
+fn generate_if_statement_code(
+    condition: &Expr,
+    taken: &Statement,
+    not_taken: Option<&Statement>,
+    var_map_list: &mut Vec<HashMap<String, usize>>,
+    curr_var_index: &mut usize,
+) -> X86Routine {
+    let label_not_taken = get_new_label();
+    let label_end = get_new_label();
+
+    let mut result = generate_expr_code(condition, var_map_list);
+    result.push(X86Instruction::single_op_instruction("pop", "rdi"));
+    result.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
+    result.push(X86Instruction::single_op_instruction(
+        "je",
+        &label_not_taken,
+    ));
+
+    let taken_routine = generate_statement_code(taken, var_map_list, curr_var_index);
+    result.extend(taken_routine);
+    if not_taken.is_some() {
+        result.push(X86Instruction::single_op_instruction("jmp", &label_end));
+    }
+    result.push(X86Instruction::no_operands_instr(&label_not_taken));
+
+    if not_taken.is_some() {
+        let not_taken_routine =
+            generate_statement_code(not_taken.unwrap(), var_map_list, curr_var_index);
+        result.extend(not_taken_routine);
+        result.push(X86Instruction::no_operands_instr(&label_end));
+    }
+
+    result
 }

@@ -19,6 +19,8 @@ pub enum Token {
     Op(Op),
     QuestionMark,
     Colon,
+    If,
+    Else,
 }
 
 impl Token {
@@ -157,6 +159,10 @@ pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
                 tokens.push(Token::Return);
             } else if val == "int" {
                 tokens.push(Token::IntT);
+            } else if val == "if" {
+                tokens.push(Token::If)
+            } else if val == "else" {
+                tokens.push(Token::Else)
             } else {
                 tokens.push(Token::Identifier { val });
             }
