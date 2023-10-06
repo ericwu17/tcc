@@ -22,6 +22,7 @@ pub enum UnOp {
 pub enum BinOp {
     Multiply,
     Divide,
+    Modulus,
     Plus,
     Minus,
     GreaterThan,

@@ -32,6 +32,7 @@ impl Token {
             BinOpPrecedenceLevel::MulDiv => match self {
                 Token::Op(Op::Slash) => Some(BinOp::Divide),
                 Token::Op(Op::Star) => Some(BinOp::Multiply),
+                Token::Op(Op::Percent) => Some(BinOp::Modulus),
                 _ => None,
             },
             BinOpPrecedenceLevel::AddSub => match self {

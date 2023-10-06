@@ -109,6 +109,13 @@ fn generate_binop_code(op: &BinOp) -> X86Routine {
             code.push(X86Instruction::single_op_instruction("idiv", "esi"));
             code.push(X86Instruction::double_op_instruction("mov", "rdi", "rax"));
         }
+        BinOp::Modulus => {
+            code.push(X86Instruction::double_op_instruction("mov", "eax", "edi"));
+            code.push(X86Instruction::no_operands_instr("cdq"));
+            code.push(X86Instruction::single_op_instruction("idiv", "esi"));
+            // the remainder is stored in edx.
+            code.push(X86Instruction::double_op_instruction("mov", "rdi", "rdx"));
+        }
         BinOp::LogicalOr => {
             // should have used the generate_short_circuiting_binop_code() function
             unreachable!();
