@@ -1,5 +1,7 @@
 mod expr_codegen;
+mod for_loop_codegen;
 
+use crate::codegen::for_loop_codegen::{count_for_loop_decls, generate_for_loop_code};
 use crate::parser::expr_parser::Expr;
 use crate::parser::Program;
 use crate::parser::Statement;
@@ -93,7 +95,7 @@ impl X86Instruction {
     }
 }
 
-struct CodeEnv {
+pub struct CodeEnv {
     // this is the offset, in units of 8-bytes, of the memory location of the next variable from rbp.
     var_index: usize,
     // a list of maps, one for each scope level, mapping variable names to stack offsets (var indices).
@@ -205,6 +207,8 @@ fn count_stmt_variable_decls(stmt: &Statement) -> usize {
             count
         }
         Statement::Expr(_) => 0,
+        Statement::Empty => 0,
+        Statement::For(..) => count_for_loop_decls(&stmt),
     }
 }
 
@@ -270,6 +274,9 @@ fn generate_statement_code(statement: &Statement, code_env: &mut CodeEnv) -> X86
             result.push(X86Instruction::single_op_instruction("pop", "rdi"));
             return result;
         }
+        Statement::Empty => {
+            return X86Routine::new();
+        }
         Statement::CompoundStmt(stmts) => {
             let result = generate_compound_stmt_code(stmts, false, code_env);
             return result;
@@ -285,6 +292,9 @@ fn generate_statement_code(statement: &Statement, code_env: &mut CodeEnv) -> X86
         }
         Statement::Continue => {
             return generate_continue_statement_code(code_env);
+        }
+        Statement::For(..) => {
+            return generate_for_loop_code(statement, code_env);
         }
     }
 }

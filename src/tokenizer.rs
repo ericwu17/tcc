@@ -22,6 +22,7 @@ pub enum Token {
     If,
     Else,
     While,
+    For,
     Break,
     Continue,
 }
@@ -171,6 +172,7 @@ pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
                 "while" => tokens.push(Token::While),
                 "break" => tokens.push(Token::Break),
                 "continue" => tokens.push(Token::Continue),
+                "for" => tokens.push(Token::For),
                 _ => tokens.push(Token::Identifier { val }),
             }
         } else {

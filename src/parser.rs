@@ -1,6 +1,8 @@
 pub mod expr_parser;
+pub mod for_loop_parser;
 use crate::{parser::expr_parser::generate_expr_ast, tokenizer::Token};
 use expr_parser::{BinOpPrecedenceLevel, Expr};
+use for_loop_parser::generate_for_loop_ast;
 
 #[derive(Debug)]
 pub struct Program {
@@ -22,7 +24,14 @@ pub enum Statement {
     CompoundStmt(Vec<Statement>),
     If(Expr, Box<Statement>, Option<Box<Statement>>),
     While(Expr, Box<Statement>),
+    For(
+        Box<Statement>,
+        Box<Statement>,
+        Box<Statement>,
+        Box<Statement>,
+    ),
     Expr(Expr),
+    Empty,
 }
 
 pub struct TokenCursor {
@@ -168,6 +177,15 @@ fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
             let body = generate_statement_ast(tokens);
             return Statement::While(conditional, Box::new(body));
         }
+        Some(Token::Semicolon) => {
+            // consume the semicolon
+            tokens.next();
+            return Statement::Empty;
+        }
+        Some(Token::For) => {
+            return generate_for_loop_ast(tokens);
+        }
+
         _ => {
             expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
             assert_eq!(tokens.next(), Some(&Token::Semicolon));
