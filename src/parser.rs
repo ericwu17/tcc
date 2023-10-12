@@ -95,9 +95,13 @@ fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
 
     match tokens.peek() {
         Some(Token::Continue) => {
+            tokens.next();
+            assert_eq!(tokens.next(), Some(&Token::Semicolon));
             return Statement::Continue;
         }
         Some(Token::Break) => {
+            tokens.next();
+            assert_eq!(tokens.next(), Some(&Token::Semicolon));
             return Statement::Break;
         }
         Some(Token::Return) => {

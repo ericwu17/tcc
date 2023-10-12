@@ -93,6 +93,28 @@ impl X86Instruction {
     }
 }
 
+struct CodeEnv {
+    // this is the offset, in units of 8-bytes, of the memory location of the next variable from rbp.
+    var_index: usize,
+    // a list of maps, one for each scope level, mapping variable names to stack offsets (var indices).
+    var_map_list: Vec<HashMap<String, usize>>,
+
+    // The two loop labels are used for break and continue statement code
+    loop_label_end: Option<String>,
+    loop_label_begin: Option<String>,
+}
+
+impl CodeEnv {
+    fn new() -> Self {
+        CodeEnv {
+            var_index: 1, // var index starts at 1 because the first variable lives at rbp - 8
+            var_map_list: Vec::new(),
+            loop_label_end: None,
+            loop_label_begin: None,
+        }
+    }
+}
+
 pub fn generate_code(program: Program) -> String {
     let mut result = String::new();
     result.push_str("global _start\n");
@@ -100,9 +122,8 @@ pub fn generate_code(program: Program) -> String {
 
     assert_eq!(program.function.name, "main");
 
-    let mut var_index: usize = 1; // this is the offset, in units of 8-bytes, of the memory location of the next variable from rbp.
-    let routine =
-        generate_compound_stmt_code(&program.function.body, true, &mut var_index, &Vec::new());
+    let mut code_env = CodeEnv::new();
+    let routine = generate_compound_stmt_code(&program.function.body, true, &mut code_env);
     result.push_str(&routine.to_asm_code());
 
     return result;
@@ -111,8 +132,7 @@ pub fn generate_code(program: Program) -> String {
 fn generate_compound_stmt_code(
     stmts: &Vec<Statement>,
     is_function_body: bool,
-    curr_var_index: &mut usize,
-    curr_var_map_list: &Vec<HashMap<String, usize>>,
+    code_env: &mut CodeEnv,
 ) -> X86Routine {
     // is_function_body is true if this compound statement is the body of a function.
     // this flag is needed to conditionally insert function prologue and epilogue
@@ -133,14 +153,9 @@ fn generate_compound_stmt_code(
     }
 
     let this_scopes_variable_map: HashMap<String, usize> = HashMap::new();
-    let mut new_var_map_list = curr_var_map_list.clone();
-    new_var_map_list.push(this_scopes_variable_map);
+    code_env.var_map_list.push(this_scopes_variable_map);
     for statement in stmts {
-        result.extend(generate_statement_code(
-            statement,
-            &mut new_var_map_list,
-            curr_var_index,
-        ));
+        result.extend(generate_statement_code(statement, code_env));
     }
 
     if is_function_body {
@@ -153,8 +168,7 @@ fn generate_compound_stmt_code(
         if need_to_insert_ret_0 {
             result.extend(generate_statement_code(
                 &Statement::Return(Expr::Int(0)),
-                &mut new_var_map_list,
-                curr_var_index,
+                code_env,
             ));
         }
 
@@ -163,6 +177,8 @@ fn generate_compound_stmt_code(
         result.push(X86Instruction::single_op_instruction("pop", "rbp")); // rbp now points to base of stack frame of outer function
         result.push(X86Instruction::no_operands_instr("ret"));
     }
+    code_env.var_map_list.pop();
+
     return result;
 }
 
@@ -205,14 +221,10 @@ fn resolve_variable(
     panic!("undeclared variable: {}", var_name);
 }
 
-fn generate_statement_code(
-    statement: &Statement,
-    var_map_list: &mut Vec<HashMap<String, usize>>,
-    curr_var_index: &mut usize,
-) -> X86Routine {
+fn generate_statement_code(statement: &Statement, code_env: &mut CodeEnv) -> X86Routine {
     match statement {
         Statement::Return(expr) => {
-            let mut result = generate_expr_code(expr, var_map_list);
+            let mut result = generate_expr_code(expr, &code_env.var_map_list);
             result.push(X86Instruction::single_op_instruction("pop", "rdi"));
             result.push(X86Instruction::double_op_instruction("mov", "rax", "60"));
             result.push(X86Instruction::no_operands_instr("syscall"));
@@ -220,22 +232,25 @@ fn generate_statement_code(
         }
         Statement::Declare(var_name, opt_value) => {
             if let Statement::Declare(var_name, _) = statement {
+                let var_map_list = &mut code_env.var_map_list;
                 let last_elem_index = var_map_list.len() - 1;
                 let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
                 if this_scopes_variable_map.get(var_name).is_some() {
                     panic!("doubly declared variable: {}", var_name);
                 }
 
-                this_scopes_variable_map.insert(var_name.clone(), *curr_var_index);
-                *curr_var_index += 1;
+                this_scopes_variable_map.insert(var_name.clone(), code_env.var_index);
+                code_env.var_index += 1;
             }
 
             match opt_value {
                 Some(expr) => {
-                    let var_location =
-                        format!("[rbp - {}]", resolve_variable(var_name, var_map_list));
+                    let var_location = format!(
+                        "[rbp - {}]",
+                        resolve_variable(var_name, &code_env.var_map_list)
+                    );
 
-                    let mut result = generate_expr_code(expr, var_map_list);
+                    let mut result = generate_expr_code(expr, &code_env.var_map_list);
                     result.push(X86Instruction::single_op_instruction("pop", "rdi"));
                     result.push(X86Instruction::double_op_instruction(
                         "mov",
@@ -251,33 +266,43 @@ fn generate_statement_code(
         }
         Statement::Expr(expr) => {
             // generate the code, pop the value off the stack, and do nothing.
-            let mut result = generate_expr_code(expr, var_map_list);
+            let mut result = generate_expr_code(expr, &code_env.var_map_list);
             result.push(X86Instruction::single_op_instruction("pop", "rdi"));
             return result;
         }
         Statement::CompoundStmt(stmts) => {
-            let result = generate_compound_stmt_code(stmts, false, curr_var_index, var_map_list);
+            let result = generate_compound_stmt_code(stmts, false, code_env);
             return result;
         }
         Statement::If(condition, taken, not_taken) => {
-            return generate_if_statement_code(
-                condition,
-                taken,
-                not_taken.as_deref(),
-                var_map_list,
-                curr_var_index,
-            );
+            return generate_if_statement_code(condition, taken, not_taken.as_deref(), code_env);
         }
         Statement::While(condition, body) => {
-            return generate_while_loop_code(condition, body, var_map_list, curr_var_index);
+            return generate_while_loop_code(condition, body, code_env);
         }
         Statement::Break => {
-            todo!();
+            return generate_break_statement_code(code_env);
         }
         Statement::Continue => {
-            todo!();
+            return generate_continue_statement_code(code_env);
         }
     }
+}
+
+fn generate_break_statement_code(code_env: &CodeEnv) -> X86Routine {
+    let label = code_env
+        .loop_label_end
+        .as_ref()
+        .expect("Cannot write a break statement outside of a loop!");
+    return X86Routine::single_instruction("jmp", vec![label]);
+}
+
+fn generate_continue_statement_code(code_env: &CodeEnv) -> X86Routine {
+    let label = code_env
+        .loop_label_begin
+        .as_ref()
+        .expect("Cannot write a continue statement outside of a loop!");
+    return X86Routine::single_instruction("jmp", vec![label]);
 }
 
 fn get_new_label() -> String {
@@ -292,13 +317,12 @@ fn generate_if_statement_code(
     condition: &Expr,
     taken: &Statement,
     not_taken: Option<&Statement>,
-    var_map_list: &mut Vec<HashMap<String, usize>>,
-    curr_var_index: &mut usize,
+    code_env: &mut CodeEnv,
 ) -> X86Routine {
     let label_not_taken = get_new_label();
     let label_end = get_new_label();
 
-    let mut result = generate_expr_code(condition, var_map_list);
+    let mut result = generate_expr_code(condition, &code_env.var_map_list);
     result.push(X86Instruction::single_op_instruction("pop", "rdi"));
     result.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
     result.push(X86Instruction::single_op_instruction(
@@ -306,7 +330,7 @@ fn generate_if_statement_code(
         &label_not_taken,
     ));
 
-    let taken_routine = generate_statement_code(taken, var_map_list, curr_var_index);
+    let taken_routine = generate_statement_code(taken, code_env);
     result.extend(taken_routine);
     if not_taken.is_some() {
         result.push(X86Instruction::single_op_instruction("jmp", &label_end));
@@ -314,8 +338,7 @@ fn generate_if_statement_code(
     result.push(X86Instruction::no_operands_instr(&label_not_taken));
 
     if not_taken.is_some() {
-        let not_taken_routine =
-            generate_statement_code(not_taken.unwrap(), var_map_list, curr_var_index);
+        let not_taken_routine = generate_statement_code(not_taken.unwrap(), code_env);
         result.extend(not_taken_routine);
         result.push(X86Instruction::no_operands_instr(&label_end));
     }
@@ -326,21 +349,26 @@ fn generate_if_statement_code(
 fn generate_while_loop_code(
     condition: &Expr,
     body: &Statement,
-    var_map_list: &mut Vec<HashMap<String, usize>>,
-    curr_var_index: &mut usize,
+    code_env: &mut CodeEnv,
 ) -> X86Routine {
     let start_label = get_new_label();
     let end_label = get_new_label();
 
+    code_env.loop_label_begin = Some(start_label.clone());
+    code_env.loop_label_end = Some(end_label.clone());
+
     let mut result = X86Routine::new();
     result.push(X86Instruction::no_operands_instr(&start_label));
-    result.extend(generate_expr_code(condition, var_map_list));
+    result.extend(generate_expr_code(condition, &code_env.var_map_list));
     result.push(X86Instruction::single_op_instruction("pop", "rdi"));
     result.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
     result.push(X86Instruction::single_op_instruction("je", &end_label));
-    result.extend(generate_statement_code(body, var_map_list, curr_var_index));
+    result.extend(generate_statement_code(body, code_env));
     result.push(X86Instruction::single_op_instruction("jmp", &start_label));
     result.push(X86Instruction::no_operands_instr(&end_label));
+
+    code_env.loop_label_begin = None;
+    code_env.loop_label_end = None;
 
     result
 }
