@@ -1,5 +1,5 @@
 use super::TokenCursor;
-use crate::tokenizer::Token;
+use crate::tokenizer::{operator::Op, Token};
 
 #[derive(Debug)]
 pub enum Expr {
@@ -76,6 +76,34 @@ pub fn generate_expr_ast(
 
                 let rhs_expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
                 return Expr::Assign(val, Box::new(rhs_expr));
+            } else if tokens.peek_nth(2) == Some(&Token::Op(Op::PlusEquals)) {
+                tokens.next();
+                tokens.next();
+
+                let rhs_expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
+
+                return Expr::Assign(
+                    val.clone(),
+                    Box::new(Expr::BinOp(
+                        BinOp::Plus,
+                        Box::new(Expr::Var(val)),
+                        Box::new(rhs_expr),
+                    )),
+                );
+            } else if tokens.peek_nth(2) == Some(&Token::Op(Op::MinusEquals)) {
+                tokens.next();
+                tokens.next();
+
+                let rhs_expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
+
+                return Expr::Assign(
+                    val.clone(),
+                    Box::new(Expr::BinOp(
+                        BinOp::Minus,
+                        Box::new(Expr::Var(val)),
+                        Box::new(rhs_expr),
+                    )),
+                );
             }
         }
     }

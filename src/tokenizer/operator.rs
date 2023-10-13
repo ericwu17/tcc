@@ -15,6 +15,8 @@ pub enum Op {
     GreaterThan,
     LessThanEq,
     GreaterThanEq,
+    PlusEquals,
+    MinusEquals,
 }
 
 pub fn char_to_operator(c: char) -> Option<Op> {
@@ -40,6 +42,8 @@ pub fn chars_to_operator(chars: (char, char)) -> Option<Op> {
         ('!', '=') => Some(Op::NotEq),
         ('<', '=') => Some(Op::LessThanEq),
         ('>', '=') => Some(Op::GreaterThanEq),
+        ('+', '=') => Some(Op::PlusEquals),
+        ('-', '=') => Some(Op::MinusEquals),
         _ => None,
     }
 }
