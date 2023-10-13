@@ -1,5 +1,6 @@
 mod codegen;
 mod parser;
+mod tac;
 mod tokenizer;
 
 use std::fs::File;
@@ -11,6 +12,7 @@ use std::process::Command;
 use clap::Parser;
 use codegen::generate_code;
 use parser::generate_program_ast;
+use tac::generate_tac;
 use tokenizer::get_tokens;
 
 const ASM_FILE_NAME: &str = "out.asm";
@@ -49,16 +51,20 @@ fn main() {
     if cli.debug {
         dbg!(&program_ast);
     }
-    let asm_code: String = generate_code(program_ast);
 
-    File::create(ASM_FILE_NAME)
-        .expect("error creating ASM output file.")
-        .write(asm_code.as_bytes())
-        .expect("error writing output to ASM output file.");
+    let tac_ir = generate_tac(program_ast);
+    dbg!(&tac_ir);
 
-    if !no_assemble {
-        assemble_and_link();
-    }
+    // let asm_code: String = generate_code(program_ast);
+
+    // File::create(ASM_FILE_NAME)
+    //     .expect("error creating ASM output file.")
+    //     .write(asm_code.as_bytes())
+    //     .expect("error writing output to ASM output file.");
+
+    // if !no_assemble {
+    //     assemble_and_link();
+    // }
 }
 
 fn assemble_and_link() {

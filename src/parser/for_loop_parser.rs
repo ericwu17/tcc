@@ -26,9 +26,9 @@ pub fn generate_for_loop_ast(tokens: &mut TokenCursor) -> Statement {
     assert_eq!(tokens.next(), Some(&Token::Semicolon));
 
     if tokens.peek() == Some(&Token::Semicolon) {
-        controlling_expr = Statement::Empty;
+        controlling_expr = None;
     } else {
-        controlling_expr = Statement::Expr(generate_expr_ast(
+        controlling_expr = Some(generate_expr_ast(
             tokens,
             BinOpPrecedenceLevel::lowest_level(),
         ));
@@ -37,9 +37,9 @@ pub fn generate_for_loop_ast(tokens: &mut TokenCursor) -> Statement {
     assert_eq!(tokens.next(), Some(&Token::Semicolon));
 
     if tokens.peek() == Some(&Token::CloseParen) {
-        post_expr = Statement::Empty;
+        post_expr = None;
     } else {
-        post_expr = Statement::Expr(generate_expr_ast(
+        post_expr = Some(generate_expr_ast(
             tokens,
             BinOpPrecedenceLevel::lowest_level(),
         ));
@@ -51,8 +51,8 @@ pub fn generate_for_loop_ast(tokens: &mut TokenCursor) -> Statement {
 
     return Statement::For(
         Box::new(initial_clause),
-        Box::new(controlling_expr),
-        Box::new(post_expr),
+        controlling_expr,
+        post_expr,
         Box::new(loop_body),
     );
 }

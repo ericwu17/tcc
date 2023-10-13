@@ -28,7 +28,7 @@ pub fn generate_for_loop_code(for_loop: &Statement, code_env: &mut CodeEnv) -> X
                 code_env,
             ));
             result.push(X86Instruction::no_operands_instr(&start_loop_label));
-            result.extend(generate_ctrl_expr_code(ctrl_expr.as_ref(), code_env));
+            // result.extend(generate_ctrl_expr_code(ctrl_expr.as_ref(), code_env));
             result.push(X86Instruction::single_op_instruction("pop", "rdi"));
             result.push(X86Instruction::double_op_instruction("cmp", "rdi", "0"));
             result.push(X86Instruction::single_op_instruction(
@@ -39,7 +39,7 @@ pub fn generate_for_loop_code(for_loop: &Statement, code_env: &mut CodeEnv) -> X
             result.extend(generate_statement_code(body.as_ref(), code_env));
 
             result.push(X86Instruction::no_operands_instr(&before_post_expr_label));
-            result.extend(generate_post_expr_code(post_expr.as_ref(), code_env));
+            // result.extend(generate_post_expr_code(post_expr.as_ref(), code_env));
             result.push(X86Instruction::single_op_instruction(
                 "jmp",
                 &start_loop_label,

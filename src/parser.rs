@@ -24,12 +24,7 @@ pub enum Statement {
     CompoundStmt(Vec<Statement>),
     If(Expr, Box<Statement>, Option<Box<Statement>>),
     While(Expr, Box<Statement>),
-    For(
-        Box<Statement>,
-        Box<Statement>,
-        Box<Statement>,
-        Box<Statement>,
-    ),
+    For(Box<Statement>, Option<Expr>, Option<Expr>, Box<Statement>),
     Expr(Expr),
     Empty,
 }

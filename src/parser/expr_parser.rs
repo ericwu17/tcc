@@ -11,14 +11,14 @@ pub enum Expr {
     Ternary(Box<Expr>, Box<Expr>, Box<Expr>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum UnOp {
     Negation,
     BitwiseComplement,
     Not,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BinOp {
     Multiply,
     Divide,
