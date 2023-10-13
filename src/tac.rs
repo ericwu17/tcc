@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 mod expr;
 mod loops;
+mod prefix_postfix_inc_dec;
 
 use crate::parser::{
     expr_parser::{BinOp, Expr, UnOp},

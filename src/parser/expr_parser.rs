@@ -9,6 +9,10 @@ pub enum Expr {
     UnOp(UnOp, Box<Expr>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
     Ternary(Box<Expr>, Box<Expr>, Box<Expr>),
+    PostfixDec(String),
+    PostfixInc(String),
+    PrefixDec(String),
+    PrefixInc(String),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -176,7 +180,29 @@ fn generate_factor_ast(tokens: &mut TokenCursor) -> Expr {
         Some(Token::Identifier { val }) => {
             let val = val.clone();
             tokens.next();
+
+            if tokens.peek() == Some(&Token::Op(Op::MinusMinus)) {
+                tokens.next();
+                return Expr::PostfixDec(val);
+            } else if tokens.peek() == Some(&Token::Op(Op::PlusPlus)) {
+                tokens.next();
+                return Expr::PostfixInc(val);
+            }
             return Expr::Var(val);
+        }
+        Some(Token::Op(op)) if *op == Op::PlusPlus || *op == Op::MinusMinus => {
+            let op = op.clone();
+            tokens.next();
+            match tokens.next() {
+                Some(Token::Identifier { val }) => {
+                    if op == Op::PlusPlus {
+                        return Expr::PrefixInc(val.clone());
+                    } else {
+                        return Expr::PrefixDec(val.clone());
+                    }
+                }
+                _ => panic!("expected an identifier after the prefix inc/dec token"),
+            }
         }
         _ => {
             dbg!(tokens.peek());

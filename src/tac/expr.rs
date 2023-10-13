@@ -4,7 +4,11 @@ use crate::{
 };
 
 use super::{
-    get_new_temp_name, resolve_variable_to_temp_name, CodeEnv, Identifier, TacInstr, TacVal,
+    get_new_temp_name,
+    prefix_postfix_inc_dec::{
+        gen_postfix_dec_tac, gen_postfix_inc_tac, gen_prefix_dec_tac, gen_prefix_inc_tac,
+    },
+    resolve_variable_to_temp_name, CodeEnv, Identifier, TacInstr, TacVal,
 };
 
 pub fn generate_expr_tac(
@@ -72,6 +76,10 @@ pub fn generate_expr_tac(
         Expr::Ternary(decision_expr, expr1, expr2) => {
             generate_ternary_tac(decision_expr, expr1, expr2, code_env, target_temp_name)
         }
+        Expr::PostfixInc(var) => gen_postfix_inc_tac(var, code_env, target_temp_name),
+        Expr::PostfixDec(var) => gen_postfix_dec_tac(var, code_env, target_temp_name),
+        Expr::PrefixInc(var) => gen_prefix_inc_tac(var, code_env, target_temp_name),
+        Expr::PrefixDec(var) => gen_prefix_dec_tac(var, code_env, target_temp_name),
     }
 }
 
