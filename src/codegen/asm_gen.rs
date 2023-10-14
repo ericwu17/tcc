@@ -1,141 +1,59 @@
-use super::{CCode, Location, Reg, X86Instr};
-
-fn convert_reg_to_asm(reg: &Reg) -> String {
-    // returns the 32-bit version of the corresponding register,
-    // but the stack pointers rsp and rbp get full 64-bit names.
-    match reg {
-        Reg::Rsp => "rsp".to_owned(),
-        Reg::Rbp => "rbp".to_owned(),
-        Reg::Rax => "eax".to_owned(),
-        Reg::Rdx => "edx".to_owned(),
-        Reg::Rbx => "ebx".to_owned(),
-        Reg::Rcx => "ecx".to_owned(),
-        Reg::Rsi => "esi".to_owned(),
-        Reg::Rdi => "edi".to_owned(),
-        Reg::R8 => "r8d".to_owned(),
-        Reg::R9 => "r9d".to_owned(),
-        Reg::R10 => "r10d".to_owned(),
-        Reg::R11 => "r11d".to_owned(),
-        Reg::R12 => "r12d".to_owned(),
-        Reg::R13 => "r13d".to_owned(),
-        Reg::R14 => "r14d".to_owned(),
-        Reg::R15 => "r15d".to_owned(),
-    }
-}
-
-fn convert_reg_to_asm_64_bit(reg: &Reg) -> String {
-    // returns the 32-bit version of the corresponding register
-    match reg {
-        Reg::Rsp => "rsp".to_owned(),
-        Reg::Rbp => "rbp".to_owned(),
-        Reg::Rax => "rax".to_owned(),
-        Reg::Rdx => "rdx".to_owned(),
-        Reg::Rbx => "rbx".to_owned(),
-        Reg::Rcx => "rcx".to_owned(),
-        Reg::Rsi => "rsi".to_owned(),
-        Reg::Rdi => "rdi".to_owned(),
-        Reg::R8 => "r8".to_owned(),
-        Reg::R9 => "r9".to_owned(),
-        Reg::R10 => "r10".to_owned(),
-        Reg::R11 => "r11".to_owned(),
-        Reg::R12 => "r12".to_owned(),
-        Reg::R13 => "r13".to_owned(),
-        Reg::R14 => "r14".to_owned(),
-        Reg::R15 => "r15".to_owned(),
-    }
-}
-
-fn convert_reg_to_asm_8_bit(reg: &Reg) -> String {
-    // returns the 32-bit version of the corresponding register
-    match reg {
-        Reg::Rsp => "spl".to_owned(),
-        Reg::Rbp => "bpl".to_owned(),
-        Reg::Rax => "al".to_owned(),
-        Reg::Rdx => "dl".to_owned(),
-        Reg::Rbx => "bl".to_owned(),
-        Reg::Rcx => "cl".to_owned(),
-        Reg::Rsi => "sil".to_owned(),
-        Reg::Rdi => "dil".to_owned(),
-        Reg::R8 => "r8b".to_owned(),
-        Reg::R9 => "r9b".to_owned(),
-        Reg::R10 => "r10b".to_owned(),
-        Reg::R11 => "r11b".to_owned(),
-        Reg::R12 => "r12b".to_owned(),
-        Reg::R13 => "r13b".to_owned(),
-        Reg::R14 => "r14b".to_owned(),
-        Reg::R15 => "r15b".to_owned(),
-    }
-}
+use super::{Location, X86Instr};
 
 fn convert_location_to_asm(location: &Location) -> String {
     match location {
         Location::Mem(offset) => format!("[rbp - {}]", offset),
-        Location::Reg(r) => convert_reg_to_asm(r),
-    }
-}
-
-fn convert_cc_to_suffix(cc: &CCode) -> String {
-    match cc {
-        CCode::E => "e".to_owned(),
-        CCode::NE => "ne".to_owned(),
-        CCode::L => "l".to_owned(),
-        CCode::LE => "le".to_owned(),
-        CCode::G => "g".to_owned(),
-        CCode::GE => "ge".to_owned(),
+        Location::Reg(r) => r.get_default_name(),
     }
 }
 
 pub fn convert_to_asm(instr: &X86Instr) -> String {
     match instr {
-        X86Instr::Push { reg } => format!("push {}", convert_reg_to_asm_64_bit(reg)),
-        X86Instr::Pop { reg } => format!("pop {}", convert_reg_to_asm_64_bit(reg)),
+        X86Instr::Push { reg } => format!("push {}", reg.get_64_bit_name()),
+        X86Instr::Pop { reg } => format!("pop {}", reg.get_64_bit_name()),
         X86Instr::Mov { dst, src } => format!(
             "mov {}, {}",
             convert_location_to_asm(dst),
             convert_location_to_asm(src),
         ),
         X86Instr::MovImm { dst, imm } => format!("mov {}, {}", convert_location_to_asm(dst), imm),
-        X86Instr::Add { dst, src } => format!(
-            "add {}, {}",
-            convert_reg_to_asm(dst),
-            convert_reg_to_asm(src),
-        ),
-        X86Instr::Sub { dst, src } => format!(
-            "sub {}, {}",
-            convert_reg_to_asm(dst),
-            convert_reg_to_asm(src),
-        ),
-        X86Instr::IMul { dst, src } => format!(
-            "imul {}, {}",
-            convert_reg_to_asm(dst),
-            convert_reg_to_asm(src),
-        ),
-        X86Instr::SubImm { dst, imm } => format!("sub {}, {}", convert_reg_to_asm(dst), imm),
+        X86Instr::Add { dst, src } => {
+            format!("add {}, {}", dst.get_default_name(), src.get_default_name())
+        }
+        X86Instr::Sub { dst, src } => {
+            format!("sub {}, {}", dst.get_default_name(), src.get_default_name())
+        }
+        X86Instr::IMul { dst, src } => {
+            format!(
+                "imul {}, {}",
+                dst.get_default_name(),
+                src.get_default_name()
+            )
+        }
+        X86Instr::SubImm { dst, imm } => format!("sub {}, {}", dst.get_default_name(), imm),
         X86Instr::Cdq => "cdq".to_owned(),
-        X86Instr::Idiv { src } => format!("idiv {}", convert_reg_to_asm(src)),
+        X86Instr::Idiv { src } => format!("idiv {}", src.get_default_name()),
         X86Instr::Label { name } => format!(".{}:", name),
         X86Instr::Jmp { label } => format!("jmp .{}", label),
         X86Instr::JmpCC { label, condition } => {
-            format!("j{} .{}", convert_cc_to_suffix(condition), label)
+            format!("j{} .{}", condition.to_suffix(), label)
         }
-        X86Instr::SetCC { dst, condition } => format!(
-            "set{} {}",
-            convert_cc_to_suffix(condition),
-            convert_reg_to_asm_8_bit(dst),
-        ),
+        X86Instr::SetCC { dst, condition } => {
+            format!("set{} {}", condition.to_suffix(), dst.get_8_bit_name(),)
+        }
 
         X86Instr::Test { src } => format!(
             "test {}, {}",
-            convert_reg_to_asm(src),
-            convert_reg_to_asm(src),
+            src.get_default_name(),
+            src.get_default_name(),
         ),
         X86Instr::Cmp { left, right } => format!(
             "cmp {}, {}",
-            convert_reg_to_asm(left),
-            convert_reg_to_asm(right)
+            left.get_default_name(),
+            right.get_default_name(),
         ),
-        X86Instr::Not { dst } => format!("not {}", convert_reg_to_asm(dst),),
-        X86Instr::Neg { dst } => format!("neg {}", convert_reg_to_asm(dst),),
+        X86Instr::Not { dst } => format!("not {}", dst.get_default_name(),),
+        X86Instr::Neg { dst } => format!("neg {}", dst.get_default_name(),),
         X86Instr::Syscall => "syscall".to_owned(),
     }
 }

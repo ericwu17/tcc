@@ -1,11 +1,12 @@
 pub mod asm_gen;
 pub mod binop;
+pub mod reg;
 pub mod unop;
 use std::collections::HashMap;
 
 use crate::tac::{tac_instr::TacInstr, Identifier, TacVal};
 
-use self::{binop::gen_binop_code, unop::gen_unop_code};
+use self::{binop::gen_binop_code, reg::Reg, unop::gen_unop_code};
 
 pub struct RegisterAllocator {
     map: HashMap<Identifier, Location>,
@@ -44,13 +45,26 @@ impl RegisterAllocator {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CCode {
+pub enum CCode {
     E,
     NE,
     L,
     LE,
     G,
     GE,
+}
+
+impl CCode {
+    pub fn to_suffix(&self) -> String {
+        match self {
+            CCode::E => "e".to_owned(),
+            CCode::NE => "ne".to_owned(),
+            CCode::L => "l".to_owned(),
+            CCode::LE => "le".to_owned(),
+            CCode::G => "g".to_owned(),
+            CCode::GE => "ge".to_owned(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -77,30 +91,7 @@ pub enum X86Instr {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub enum Reg {
-    Rsp,
-    Rbp,
-    Rax,
-    Rdx,
-
-    Rbx,
-    Rcx,
-    Rsi,
-    Rdi,
-
-    R8,
-    R9,
-    R10,
-    R11,
-
-    R12,
-    R13,
-    R14,
-    R15,
-}
-
-#[derive(Clone, Copy, Debug)]
-enum Location {
+pub enum Location {
     Reg(Reg),
     Mem(usize), // usize represents offset from rbp
 }
