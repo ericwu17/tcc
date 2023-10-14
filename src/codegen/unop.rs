@@ -27,7 +27,7 @@ pub fn gen_unop_code(
             });
             result.push(X86Instr::SetCC {
                 dst: working_reg,
-                condition: CCode::NE,
+                condition: CCode::E,
             });
         }
     }

@@ -73,8 +73,8 @@ pub fn gen_binop_code(
 fn generate_cmp_code(result: &mut Vec<X86Instr>, reg1: Reg, reg2: Reg, cc: CCode) {
     // makes comparison between reg1 and reg2, stores result in reg1.
     result.push(X86Instr::Cmp {
-        left: reg2,
-        right: reg1,
+        left: reg1,
+        right: reg2,
     });
     result.push(X86Instr::MovImm {
         dst: Location::Reg(reg1),

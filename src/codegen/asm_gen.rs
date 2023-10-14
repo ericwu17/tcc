@@ -45,6 +45,28 @@ fn convert_reg_to_asm_64_bit(reg: &Reg) -> String {
     }
 }
 
+fn convert_reg_to_asm_8_bit(reg: &Reg) -> String {
+    // returns the 32-bit version of the corresponding register
+    match reg {
+        Reg::Rsp => "spl".to_owned(),
+        Reg::Rbp => "bpl".to_owned(),
+        Reg::Rax => "al".to_owned(),
+        Reg::Rdx => "dl".to_owned(),
+        Reg::Rbx => "bl".to_owned(),
+        Reg::Rcx => "cl".to_owned(),
+        Reg::Rsi => "sil".to_owned(),
+        Reg::Rdi => "dil".to_owned(),
+        Reg::R8 => "r8b".to_owned(),
+        Reg::R9 => "r9b".to_owned(),
+        Reg::R10 => "r10b".to_owned(),
+        Reg::R11 => "r11b".to_owned(),
+        Reg::R12 => "r12b".to_owned(),
+        Reg::R13 => "r13b".to_owned(),
+        Reg::R14 => "r14b".to_owned(),
+        Reg::R15 => "r15b".to_owned(),
+    }
+}
+
 fn convert_location_to_asm(location: &Location) -> String {
     match location {
         Location::Mem(offset) => format!("[rbp - {}]", offset),
@@ -92,18 +114,18 @@ pub fn convert_to_asm(instr: &X86Instr) -> String {
         X86Instr::Cdq => "cdq".to_owned(),
         X86Instr::Idiv { src } => format!("idiv {}", convert_reg_to_asm(src)),
         X86Instr::Label { name } => format!(".{}:", name),
-        X86Instr::Jmp { label } => format!("jmp {}", label),
+        X86Instr::Jmp { label } => format!("jmp .{}", label),
         X86Instr::JmpCC { label, condition } => {
-            format!("jmp{} {}", convert_cc_to_suffix(condition), label)
+            format!("j{} .{}", convert_cc_to_suffix(condition), label)
         }
         X86Instr::SetCC { dst, condition } => format!(
-            "jmp{} {}",
+            "set{} {}",
             convert_cc_to_suffix(condition),
-            convert_reg_to_asm(dst),
+            convert_reg_to_asm_8_bit(dst),
         ),
 
         X86Instr::Test { src } => format!(
-            "test {} {}",
+            "test {}, {}",
             convert_reg_to_asm(src),
             convert_reg_to_asm(src),
         ),

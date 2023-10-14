@@ -128,15 +128,22 @@ fn generate_statement_tac(statement: &Statement, code_env: &mut CodeEnv) -> Vec<
             }
             let var_temp_loc = get_new_temp_name();
 
-            this_scopes_variable_map.insert(var_name.clone(), var_temp_loc);
-
             match opt_value {
                 Some(expr) => {
                     let (result, _) = generate_expr_tac(expr, code_env, Some(var_temp_loc));
 
+                    let var_map_list = &mut code_env.var_map_list;
+                    let last_elem_index = var_map_list.len() - 1;
+                    let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
+                    this_scopes_variable_map.insert(var_name.clone(), var_temp_loc);
+
                     return result;
                 }
                 None => {
+                    let var_map_list = &mut code_env.var_map_list;
+                    let last_elem_index = var_map_list.len() - 1;
+                    let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
+                    this_scopes_variable_map.insert(var_name.clone(), var_temp_loc);
                     return Vec::new();
                 }
             };

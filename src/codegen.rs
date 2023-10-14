@@ -16,13 +16,13 @@ impl RegisterAllocator {
         let mut set_of_temporaries: Vec<Identifier> = Vec::new();
 
         for instr in tac_instrs {
-            if let Some(ident) = instr.get_written_identifier() {
-                set_of_temporaries.push(ident);
-            }
             for ident in instr.get_read_identifiers() {
                 if !set_of_temporaries.contains(&ident) {
                     panic!("read from temporary without first writing: {:?}", ident);
                 }
+            }
+            if let Some(ident) = instr.get_written_identifier() {
+                set_of_temporaries.push(ident);
             }
         }
 
