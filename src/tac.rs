@@ -1,17 +1,16 @@
 use std::collections::HashMap;
 use std::fmt;
-mod expr;
-mod loops;
-mod prefix_postfix_inc_dec;
+pub mod expr;
+pub mod loops;
+pub mod prefix_postfix_inc_dec;
+pub mod tac_instr;
 
-use crate::parser::{
-    expr_parser::{BinOp, Expr, UnOp},
-    Program, Statement,
-};
+use crate::parser::{expr_parser::Expr, Program, Statement};
 
 use self::{
     expr::generate_expr_tac,
     loops::{gen_for_loop_tac, gen_while_loop_tac, generate_break_tac, generate_continue_tac},
+    tac_instr::TacInstr,
 };
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
@@ -35,48 +34,6 @@ impl fmt::Debug for TacVal {
             TacVal::Var(ident) => write!(f, "{:?}", ident),
         }
         // write!(f, "Point [{} {}]", self.x, self.y)
-    }
-}
-
-pub enum TacInstr {
-    Exit(TacVal),
-    Binop(Identifier, TacVal, TacVal, BinOp),
-    UnOp(Identifier, TacVal, UnOp),
-    Copy(Identifier, TacVal),
-    Label(String),
-    Jmp(String),
-    JmpZero(String, TacVal),
-    JmpNotZero(String, TacVal),
-}
-
-impl fmt::Debug for TacInstr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            TacInstr::Binop(identifier, val1, val2, op) => {
-                write!(f, "{:?} = {:?} {:?} {:?}", identifier, val1, op, val2)
-            }
-            TacInstr::UnOp(identifier, val, op) => {
-                write!(f, "{:?} = {:?} {:?}", identifier, op, val)
-            }
-            TacInstr::Copy(identifier, val) => {
-                write!(f, "{:?} = {:?}", identifier, val)
-            }
-            TacInstr::Label(label_name) => {
-                write!(f, "{:?}:", label_name)
-            }
-            TacInstr::Jmp(label) => {
-                write!(f, "jmp {:?}", label)
-            }
-            TacInstr::JmpZero(label, v) => {
-                write!(f, "jz {:?} {:?}", label, v)
-            }
-            TacInstr::JmpNotZero(label, v) => {
-                write!(f, "jnz {:?} {:?}", label, v)
-            }
-            TacInstr::Exit(v) => {
-                write!(f, "exit {:?}", v)
-            }
-        }
     }
 }
 

@@ -11,7 +11,7 @@ pub fn gen_prefix_inc_tac(
 ) -> (Vec<TacInstr>, TacVal) {
     let mut result = Vec::new();
     let temporary_ident = resolve_variable_to_temp_name(var_name, code_env);
-    result.push(TacInstr::Binop(
+    result.push(TacInstr::BinOp(
         temporary_ident,
         TacVal::Var(temporary_ident),
         TacVal::Lit(1),
@@ -30,7 +30,7 @@ pub fn gen_prefix_dec_tac(
 ) -> (Vec<TacInstr>, TacVal) {
     let mut result = Vec::new();
     let temporary_ident = resolve_variable_to_temp_name(var_name, code_env);
-    result.push(TacInstr::Binop(
+    result.push(TacInstr::BinOp(
         temporary_ident,
         TacVal::Var(temporary_ident),
         TacVal::Lit(1),
@@ -57,7 +57,7 @@ pub fn gen_postfix_inc_tac(
 
     result.push(TacInstr::Copy(new_ident, TacVal::Var(temporary_ident)));
 
-    result.push(TacInstr::Binop(
+    result.push(TacInstr::BinOp(
         temporary_ident,
         TacVal::Var(temporary_ident),
         TacVal::Lit(1),
@@ -81,7 +81,7 @@ pub fn gen_postfix_dec_tac(
 
     result.push(TacInstr::Copy(new_ident, TacVal::Var(temporary_ident)));
 
-    result.push(TacInstr::Binop(
+    result.push(TacInstr::BinOp(
         temporary_ident,
         TacVal::Var(temporary_ident),
         TacVal::Lit(1),

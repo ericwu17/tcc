@@ -10,10 +10,12 @@ use std::io::Write;
 use std::process::Command;
 
 use clap::Parser;
-use codegen::generate_code;
+use codegen::generate_x86_code;
 use parser::generate_program_ast;
 use tac::generate_tac;
 use tokenizer::get_tokens;
+
+use crate::codegen::asm_gen::generate_program_asm;
 
 const ASM_FILE_NAME: &str = "out.asm";
 const OBJ_FILE_NAME: &str = "out.o";
@@ -53,18 +55,25 @@ fn main() {
     }
 
     let tac_ir = generate_tac(program_ast);
-    dbg!(&tac_ir);
+    if cli.debug {
+        dbg!(&tac_ir);
+    }
 
-    // let asm_code: String = generate_code(program_ast);
+    let x86_code = generate_x86_code(&tac_ir);
+    if cli.debug {
+        dbg!(&x86_code);
+    }
 
-    // File::create(ASM_FILE_NAME)
-    //     .expect("error creating ASM output file.")
-    //     .write(asm_code.as_bytes())
-    //     .expect("error writing output to ASM output file.");
+    let asm_code = generate_program_asm(&x86_code);
 
-    // if !no_assemble {
-    //     assemble_and_link();
-    // }
+    File::create(ASM_FILE_NAME)
+        .expect("error creating ASM output file.")
+        .write(asm_code.as_bytes())
+        .expect("error writing output to ASM output file.");
+
+    if !no_assemble {
+        assemble_and_link();
+    }
 }
 
 fn assemble_and_link() {

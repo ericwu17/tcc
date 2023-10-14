@@ -103,7 +103,7 @@ fn generate_binop_tac(
     let (result2, expr_2_val) = generate_expr_tac(expr2, code_env, None);
 
     result.extend(result2);
-    result.push(TacInstr::Binop(final_temp_name, expr_1_val, expr_2_val, op));
+    result.push(TacInstr::BinOp(final_temp_name, expr_1_val, expr_2_val, op));
     (result, TacVal::Var(final_temp_name))
 }
 
@@ -129,7 +129,7 @@ fn generate_short_circuiting_tac(
             result.push(TacInstr::JmpZero(label_and_false.clone(), lhs_val));
             let (res_rhs, rhs_val) = generate_expr_tac(expr2, code_env, None);
             result.extend(res_rhs);
-            result.push(TacInstr::Binop(
+            result.push(TacInstr::BinOp(
                 final_temp_name,
                 rhs_val,
                 TacVal::Lit(0),
@@ -151,7 +151,7 @@ fn generate_short_circuiting_tac(
             result.push(TacInstr::JmpNotZero(label_or_true.clone(), lhs_val));
             let (res_rhs, rhs_val) = generate_expr_tac(expr2, code_env, None);
             result.extend(res_rhs);
-            result.push(TacInstr::Binop(
+            result.push(TacInstr::BinOp(
                 final_temp_name,
                 rhs_val,
                 TacVal::Lit(0),
