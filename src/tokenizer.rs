@@ -175,6 +175,26 @@ pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
                 "for" => tokens.push(Token::For),
                 _ => tokens.push(Token::Identifier { val }),
             }
+        } else if next_char == '\'' {
+            cursor.next(); // consume the single quote char
+
+            let mut val = String::new();
+            while cursor.peek().is_some()
+                && (*cursor.peek().unwrap()) != '\''
+                && (*cursor.peek().unwrap()) != '\n'
+            {
+                val.push(*cursor.next().unwrap());
+                if val.ends_with('\\') {
+                    val.push(*cursor.next().unwrap());
+                }
+            }
+            if cursor.next() != Some(&'\'') {
+                panic!("expected a closing `'` for character expression!")
+            }
+
+            tokens.push(Token::IntLit {
+                val: convert_str_to_char_int(val),
+            })
         } else {
             println!("you messed up, unrecognized character {}", next_char);
             std::process::exit(1);
@@ -182,4 +202,31 @@ pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
     }
 
     tokens
+}
+
+fn convert_str_to_char_int(val: String) -> String {
+    match val.len() {
+        1 => {
+            let res = val.chars().next().unwrap();
+            format!("{}", res as i32)
+        }
+        2 => {
+            assert_eq!(val.chars().nth(0).unwrap(), '\\');
+
+            match val.chars().nth(1).unwrap() {
+                't' => "9".to_owned(),
+                'n' => "10".to_owned(),
+                '\\' => "92".to_owned(),
+                '0' => "0".to_owned(),
+                '\'' => "39".to_owned(),
+                _ => {
+                    panic!("unrecognized character escape sequence: '{}'", val)
+                }
+            }
+        }
+
+        _ => {
+            panic!("invalid length for character literal");
+        }
+    }
 }
