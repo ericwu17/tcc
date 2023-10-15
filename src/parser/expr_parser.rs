@@ -9,6 +9,7 @@ pub enum Expr {
     UnOp(UnOp, Box<Expr>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
     Ternary(Box<Expr>, Box<Expr>, Box<Expr>),
+    FunctionCall(String, Vec<Expr>), // Vec<Expr> contains the arguments of the function
     PostfixDec(String),
     PostfixInc(String),
     PrefixDec(String),
@@ -187,6 +188,11 @@ fn generate_factor_ast(tokens: &mut TokenCursor) -> Expr {
             } else if tokens.peek() == Some(&Token::Op(Op::PlusPlus)) {
                 tokens.next();
                 return Expr::PostfixInc(val);
+            } else if tokens.peek() == Some(&Token::OpenParen) {
+                tokens.next(); // consume the open paren
+                let args = parse_function_args(tokens);
+                assert_eq!(tokens.next(), Some(&Token::CloseParen));
+                return Expr::FunctionCall(val, args);
             }
             return Expr::Var(val);
         }
@@ -209,4 +215,25 @@ fn generate_factor_ast(tokens: &mut TokenCursor) -> Expr {
             panic!();
         }
     }
+}
+
+fn parse_function_args(tokens: &mut TokenCursor) -> Vec<Expr> {
+    let mut args = Vec::new();
+
+    if tokens.peek() == Some(&Token::CloseParen) {
+        return Vec::new();
+    }
+    loop {
+        args.push(generate_expr_ast(
+            tokens,
+            BinOpPrecedenceLevel::lowest_level(),
+        ));
+        if tokens.peek() == Some(&Token::Comma) {
+            tokens.next(); // consume the comma
+        } else {
+            break;
+        }
+    }
+
+    args
 }

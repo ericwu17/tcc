@@ -1,4 +1,6 @@
-use super::{Location, X86Instr};
+use std::collections::HashSet;
+
+use super::{putchar::generate_putchar_asm, Location, X86Instr};
 
 fn convert_location_to_asm(location: &Location) -> String {
     match location {
@@ -55,6 +57,7 @@ pub fn convert_to_asm(instr: &X86Instr) -> String {
         X86Instr::Not { dst } => format!("not {}", dst.get_default_name(),),
         X86Instr::Neg { dst } => format!("neg {}", dst.get_default_name(),),
         X86Instr::Syscall => "syscall".to_owned(),
+        X86Instr::Call { name } => format!("call {}", name),
     }
 }
 
@@ -66,14 +69,23 @@ pub fn generate_program_asm(instrs: &Vec<X86Instr>) -> String {
     result.push_str("global _start\n");
     result.push_str("_start:\n");
 
+    let mut called_functions = HashSet::new();
+
     for instr in instrs {
         let instr_string = convert_to_asm(instr);
         if !instr_string.starts_with(".") {
             // we assume only labels begin with ".", and labels should not be indented.s
             result.push_str(indent);
         }
+        if let X86Instr::Call { name } = instr {
+            called_functions.insert(name);
+        }
         result.push_str(&instr_string);
         result.push('\n');
+    }
+
+    if called_functions.contains(&"putchar".to_owned()) {
+        result.push_str(&generate_putchar_asm());
     }
 
     result

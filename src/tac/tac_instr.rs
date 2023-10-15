@@ -13,6 +13,7 @@ pub enum TacInstr {
     Jmp(String),
     JmpZero(String, TacVal),
     JmpNotZero(String, TacVal),
+    Call(String, Vec<TacVal>, Option<Identifier>),
 }
 
 impl TacInstr {
@@ -25,7 +26,6 @@ impl TacInstr {
             TacInstr::UnOp(ident, _, _) => {
                 result = Some(*ident);
             }
-
             TacInstr::Copy(ident, _) => {
                 result = Some(*ident);
             }
@@ -34,6 +34,7 @@ impl TacInstr {
             | TacInstr::Exit(..)
             | TacInstr::JmpNotZero(..)
             | TacInstr::JmpZero(..) => {}
+            TacInstr::Call(_, _, optional_ident) => result = *optional_ident,
         }
         result
     }
@@ -75,6 +76,13 @@ impl TacInstr {
                     result.push(*ident);
                 }
             }
+            TacInstr::Call(_, args, _) => {
+                for arg in args {
+                    if let TacVal::Var(ident) = arg {
+                        result.push(*ident);
+                    }
+                }
+            }
         }
         result
     }
@@ -93,20 +101,24 @@ impl fmt::Debug for TacInstr {
                 write!(f, "{:?} = {:?}", identifier, val)
             }
             TacInstr::Label(label_name) => {
-                write!(f, "{:?}:", label_name)
+                write!(f, "{}:", label_name)
             }
             TacInstr::Jmp(label) => {
-                write!(f, "jmp {:?}", label)
+                write!(f, "jmp {}", label)
             }
             TacInstr::JmpZero(label, v) => {
-                write!(f, "jz {:?} {:?}", label, v)
+                write!(f, "jz {} {:?}", label, v)
             }
             TacInstr::JmpNotZero(label, v) => {
-                write!(f, "jnz {:?} {:?}", label, v)
+                write!(f, "jnz {} {:?}", label, v)
             }
             TacInstr::Exit(v) => {
                 write!(f, "exit {:?}", v)
             }
+            TacInstr::Call(name, args, optional_ident) => match optional_ident {
+                None => write!(f, "call {}({:?})", name, args),
+                Some(ident) => write!(f, "{:?} = call {}({:?})", ident, name, args),
+            },
         }
     }
 }

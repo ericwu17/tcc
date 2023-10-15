@@ -1,12 +1,16 @@
 pub mod asm_gen;
 pub mod binop;
+pub mod functions;
+pub mod putchar;
 pub mod reg;
 pub mod unop;
 use std::collections::HashMap;
 
 use crate::tac::{tac_instr::TacInstr, Identifier, TacVal};
 
-use self::{binop::gen_binop_code, reg::Reg, unop::gen_unop_code};
+use self::{
+    binop::gen_binop_code, functions::generate_function_call_code, reg::Reg, unop::gen_unop_code,
+};
 
 pub struct RegisterAllocator {
     map: HashMap<Identifier, Location>,
@@ -87,6 +91,7 @@ pub enum X86Instr {
     Cmp { left: Reg, right: Reg },
     Not { dst: Reg }, // bitwise complement
     Neg { dst: Reg }, // negate the number (additive inverse)
+    Call { name: String },
     Syscall,
 }
 
@@ -169,6 +174,9 @@ fn gen_x86_for_tac(result: &mut Vec<X86Instr>, instr: &TacInstr, reg_alloc: &Reg
                 label: label_name.clone(),
                 condition: CCode::NE,
             })
+        }
+        TacInstr::Call(function_name, args, optional_ident) => {
+            generate_function_call_code(result, function_name, args, *optional_ident, reg_alloc)
         }
     }
 }

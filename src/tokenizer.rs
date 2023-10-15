@@ -15,6 +15,7 @@ pub enum Token {
     Return,
     IntT,
     Semicolon,
+    Comma,
     AssignmentEquals,
     Op(Op),
     QuestionMark,
@@ -134,6 +135,9 @@ pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
         } else if next_char == '?' {
             cursor.next();
             tokens.push(Token::QuestionMark);
+        } else if next_char == ',' {
+            cursor.next();
+            tokens.push(Token::Comma);
         } else if let Some(op) = chars_to_operator((next_char, next_next_char)) {
             // must consume 2 characters for an operator that is 2 characters long
             cursor.next();

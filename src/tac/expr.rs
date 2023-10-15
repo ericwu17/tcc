@@ -80,6 +80,9 @@ pub fn generate_expr_tac(
         Expr::PostfixDec(var) => gen_postfix_dec_tac(var, code_env, target_temp_name),
         Expr::PrefixInc(var) => gen_prefix_inc_tac(var, code_env, target_temp_name),
         Expr::PrefixDec(var) => gen_prefix_dec_tac(var, code_env, target_temp_name),
+        Expr::FunctionCall(func_ident, args) => {
+            gen_function_call_tac(func_ident, args, code_env, target_temp_name)
+        }
     }
 }
 
@@ -196,6 +199,36 @@ fn generate_ternary_tac(
     let (res_expr2, _) = generate_expr_tac(expr2, code_env, Some(final_temp_name));
     result.extend(res_expr2);
     result.push(TacInstr::Label(label_end));
+
+    (result, TacVal::Var(final_temp_name))
+}
+
+pub fn gen_function_call_tac(
+    func_ident: &String,
+    args: &Vec<Expr>,
+    code_env: &CodeEnv,
+    target_temp_name: Option<Identifier>,
+) -> (Vec<TacInstr>, TacVal) {
+    let final_temp_name = if let Some(ident) = target_temp_name {
+        ident
+    } else {
+        get_new_temp_name()
+    };
+
+    let mut result = Vec::new();
+    let mut arg_vals = Vec::new();
+
+    for arg_expr in args {
+        let (instrs, arg_val) = generate_expr_tac(arg_expr, code_env, None);
+        result.extend(instrs);
+        arg_vals.push(arg_val);
+    }
+
+    result.push(TacInstr::Call(
+        func_ident.clone(),
+        arg_vals,
+        Some(final_temp_name),
+    ));
 
     (result, TacVal::Var(final_temp_name))
 }
