@@ -26,7 +26,6 @@ pub fn gen_binop_code(
         BinOp::Multiply => result.push(X86Instr::IMul {
             dst: val1_reg,
             src: val2_reg,
-            size: dst_ident.get_size(),
         }),
         BinOp::Divide => {
             result.push(X86Instr::Mov {

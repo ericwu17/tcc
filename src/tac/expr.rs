@@ -315,7 +315,7 @@ pub fn get_bigger_size(s1: Option<VarSize>, s2: Option<VarSize>) -> Option<VarSi
 }
 
 pub fn get_expr_size(expr: &Expr, code_env: &CodeEnv) -> Option<VarSize> {
-    match expr {
+    let res = match expr {
         Expr::Int(_) => None,
         Expr::Var(name) => Some(resolve_variable_to_temp_name(name, code_env).1),
         Expr::Assign(name, _) => Some(resolve_variable_to_temp_name(name, code_env).1),
@@ -333,5 +333,10 @@ pub fn get_expr_size(expr: &Expr, code_env: &CodeEnv) -> Option<VarSize> {
         Expr::PostfixInc(name) => Some(resolve_variable_to_temp_name(name, code_env).1),
         Expr::PrefixDec(name) => Some(resolve_variable_to_temp_name(name, code_env).1),
         Expr::PrefixInc(name) => Some(resolve_variable_to_temp_name(name, code_env).1),
+    };
+
+    if res == Some(VarSize::Quad) {
+        return res;
     }
+    return Some(VarSize::Dword);
 }

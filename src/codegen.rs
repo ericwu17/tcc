@@ -102,7 +102,6 @@ pub enum X86Instr {
     IMul {
         dst: Reg,
         src: Reg,
-        size: VarSize,
     },
     SubImm {
         dst: Reg,
@@ -146,6 +145,10 @@ pub enum X86Instr {
     }, // negate the number (additive inverse)
     Call {
         name: String,
+    },
+    SignExtend {
+        reg: Reg,
+        size: VarSize,
     },
     Syscall,
 }
@@ -254,14 +257,11 @@ fn gen_load_val_code(
     reg_alloc: &RegisterAllocator,
 ) {
     match val {
-        TacVal::Lit(imm, size) => {
-            // todo!();
-            result.push(X86Instr::MovImm {
-                dst: Location::Reg(reg),
-                imm: *imm,
-                size: *size,
-            })
-        }
+        TacVal::Lit(imm, size) => result.push(X86Instr::MovImm {
+            dst: Location::Reg(reg),
+            imm: *imm,
+            size: *size,
+        }),
         TacVal::Var(var_ident) => {
             let loc = reg_alloc.get_location(*var_ident);
             result.push(X86Instr::Mov {
@@ -269,6 +269,12 @@ fn gen_load_val_code(
                 src: loc,
                 size: val.get_size(),
             });
+            if val.get_size() != VarSize::Quad {
+                result.push(X86Instr::SignExtend {
+                    reg: reg,
+                    size: val.get_size(),
+                });
+            }
         }
     }
 }

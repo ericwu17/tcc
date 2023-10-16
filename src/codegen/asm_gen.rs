@@ -37,11 +37,11 @@ pub fn convert_to_asm(instr: &X86Instr) -> String {
                 src.get_sized_name(*size)
             )
         }
-        X86Instr::IMul { dst, src, size } => {
+        X86Instr::IMul { dst, src } => {
             format!(
                 "imul {}, {}",
-                dst.get_sized_name(*size),
-                src.get_sized_name(*size)
+                dst.get_default_name(),
+                src.get_default_name()
             )
         }
         X86Instr::SubImm { dst, imm, size } => {
@@ -72,6 +72,11 @@ pub fn convert_to_asm(instr: &X86Instr) -> String {
         X86Instr::Neg { dst, size } => format!("neg {}", dst.get_sized_name(*size),),
         X86Instr::Syscall => "syscall".to_owned(),
         X86Instr::Call { name } => format!("call {}", name),
+        X86Instr::SignExtend { reg, size } => format!(
+            "movsx {}, {}",
+            reg.get_64_bit_name(),
+            reg.get_sized_name(*size)
+        ),
     }
 }
 
