@@ -1,6 +1,9 @@
 pub mod expr_parser;
 pub mod for_loop_parser;
-use crate::{parser::expr_parser::generate_expr_ast, tokenizer::Token};
+use crate::{
+    parser::expr_parser::generate_expr_ast,
+    tokenizer::{Token, VarType},
+};
 use expr_parser::{BinOpPrecedenceLevel, Expr};
 use for_loop_parser::generate_for_loop_ast;
 
@@ -20,7 +23,7 @@ pub enum Statement {
     Continue,
     Break,
     Return(Expr),
-    Declare(String, Option<Expr>),
+    Declare(String, Option<Expr>, VarType),
     CompoundStmt(Vec<Statement>),
     If(Expr, Box<Statement>, Option<Box<Statement>>),
     While(Expr, Box<Statement>),
@@ -63,7 +66,14 @@ pub fn generate_program_ast(tokens: Vec<Token>) -> Program {
 fn generate_function_ast(tokens: &mut TokenCursor) -> Function {
     let function_name;
 
-    assert_eq!(tokens.next(), Some(&Token::IntT));
+    match tokens.next() {
+        Some(&Token::Type(..)) => {
+            // ok
+        }
+        _ => {
+            panic!("function definitions must begin with the type that they return!")
+        }
+    }
 
     if let Some(Token::Identifier { val }) = tokens.next() {
         function_name = val.clone();
@@ -116,7 +126,8 @@ fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
             assert_eq!(tokens.next(), Some(&Token::Semicolon));
             return Statement::Return(expr);
         }
-        Some(Token::IntT) => {
+        Some(Token::Type(t)) => {
+            let t = t.clone();
             tokens.next();
             let decl_identifier;
             let mut optional_expr = None;
@@ -134,7 +145,7 @@ fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
                 ))
             }
             assert_eq!(tokens.next(), Some(&Token::Semicolon));
-            return Statement::Declare(decl_identifier, optional_expr);
+            return Statement::Declare(decl_identifier, optional_expr, t);
         }
         Some(Token::OpenBrace) => {
             let compound_stmt = generate_compound_stmt_ast(tokens);

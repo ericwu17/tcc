@@ -11,7 +11,7 @@ pub fn generate_for_loop_ast(tokens: &mut TokenCursor) -> Statement {
     let post_expr;
     let loop_body;
 
-    if tokens.peek() == Some(&Token::IntT) {
+    if let Some(&Token::Type(_)) = tokens.peek() {
         // initial clause is a declare statement
         initial_clause = generate_for_loop_decl_expr(tokens);
     } else if tokens.peek() == Some(&Token::Semicolon) {
@@ -58,8 +58,14 @@ pub fn generate_for_loop_ast(tokens: &mut TokenCursor) -> Statement {
 }
 
 fn generate_for_loop_decl_expr(tokens: &mut TokenCursor) -> Statement {
-    // consume the "int"
-    tokens.next();
+    let t;
+    match tokens.next() {
+        Some(Token::Type(inner_t)) => t = *inner_t,
+        _ => panic!(
+            "tried to generate a for loop declaration that doesn't begin with a variable type!"
+        ),
+    }
+
     let decl_identifier;
     if let Some(Token::Identifier { val }) = tokens.next() {
         decl_identifier = val.clone();
@@ -71,5 +77,5 @@ fn generate_for_loop_decl_expr(tokens: &mut TokenCursor) -> Statement {
 
     let expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
 
-    return Statement::Declare(decl_identifier, Some(expr));
+    return Statement::Declare(decl_identifier, Some(expr), t);
 }

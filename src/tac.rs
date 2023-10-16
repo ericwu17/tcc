@@ -13,24 +13,74 @@ use self::{
     tac_instr::TacInstr,
 };
 
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
+pub enum VarSize {
+    Byte,
+    Word,
+    Dword,
+    Quad,
+}
+
+impl Default for VarSize {
+    fn default() -> Self {
+        VarSize::Dword
+    }
+}
+
+impl VarSize {
+    fn to_letter(&self) -> char {
+        match self {
+            VarSize::Byte => 'b',
+            VarSize::Word => 'w',
+            VarSize::Dword => 'd',
+            VarSize::Quad => 'q',
+        }
+    }
+}
+
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
-pub struct Identifier(usize); // an identifier for a temporary in TAC
+pub struct Identifier(usize, VarSize); // an identifier for a temporary in TAC
 
 impl fmt::Debug for Identifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "t{}", self.0)
+        let suffix = self.1.to_letter();
+        write!(f, "{}{}", suffix, self.0)
+    }
+}
+
+impl Identifier {
+    pub fn get_num_bytes(&self) -> usize {
+        match self.1 {
+            VarSize::Byte => 1,
+            VarSize::Word => 2,
+            VarSize::Dword => 4,
+            VarSize::Quad => 8,
+        }
+    }
+
+    pub fn get_size(&self) -> VarSize {
+        return self.1;
     }
 }
 
 pub enum TacVal {
-    Lit(i32),
+    Lit(i32, VarSize),
     Var(Identifier),
+}
+
+impl TacVal {
+    pub fn get_size(&self) -> VarSize {
+        match self {
+            TacVal::Lit(_, size) => *size,
+            TacVal::Var(ident) => ident.1,
+        }
+    }
 }
 
 impl fmt::Debug for TacVal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TacVal::Lit(v) => write!(f, "{}", v),
+            TacVal::Lit(val, var_size) => write!(f, "{}{}", val, var_size.to_letter()),
             TacVal::Var(ident) => write!(f, "{:?}", ident),
         }
         // write!(f, "Point [{} {}]", self.x, self.y)
@@ -59,11 +109,11 @@ impl CodeEnv {
 static mut TEMP_STORAGE_NUMBER: usize = 0;
 static mut LABEL_NUMBER: usize = 0;
 
-fn get_new_temp_name() -> Identifier {
+fn get_new_temp_name(size: VarSize) -> Identifier {
     unsafe {
         // Safety: no race conditions because this compiler is single-threaded
         TEMP_STORAGE_NUMBER += 1;
-        return Identifier(TEMP_STORAGE_NUMBER - 1);
+        return Identifier(TEMP_STORAGE_NUMBER - 1, size);
     }
 }
 
@@ -91,7 +141,7 @@ pub fn generate_tac(program: Program) -> Vec<TacInstr> {
         }
     }
     if need_to_insert_return {
-        result.push(TacInstr::Exit(TacVal::Lit(0)));
+        result.push(TacInstr::Exit(TacVal::Lit(0, VarSize::default())));
     }
 
     return result;
@@ -115,22 +165,23 @@ fn generate_compound_stmt_tac(stmts: &Vec<Statement>, code_env: &mut CodeEnv) ->
 fn generate_statement_tac(statement: &Statement, code_env: &mut CodeEnv) -> Vec<TacInstr> {
     match statement {
         Statement::Return(expr) => {
-            let (mut result, expr_val) = generate_expr_tac(expr, code_env, None);
+            let (mut result, expr_val) = generate_expr_tac(expr, code_env, None, None);
             result.push(TacInstr::Exit(expr_val));
             result
         }
-        Statement::Declare(var_name, opt_value) => {
+        Statement::Declare(var_name, opt_value, t) => {
             let var_map_list = &mut code_env.var_map_list;
             let last_elem_index = var_map_list.len() - 1;
             let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
             if this_scopes_variable_map.get(var_name).is_some() {
                 panic!("doubly declared variable: {}", var_name);
             }
-            let var_temp_loc = get_new_temp_name();
+            let var_temp_loc = get_new_temp_name(t.to_size());
 
             match opt_value {
                 Some(expr) => {
-                    let (result, _) = generate_expr_tac(expr, code_env, Some(var_temp_loc));
+                    let (result, _) =
+                        generate_expr_tac(expr, code_env, Some(var_temp_loc), Some(t.to_size()));
 
                     let var_map_list = &mut code_env.var_map_list;
                     let last_elem_index = var_map_list.len() - 1;
@@ -149,7 +200,7 @@ fn generate_statement_tac(statement: &Statement, code_env: &mut CodeEnv) -> Vec<
             };
         }
         Statement::Expr(expr) => {
-            let (result, _) = generate_expr_tac(expr, code_env, None);
+            let (result, _) = generate_expr_tac(expr, code_env, None, None);
             result
         }
         Statement::Empty => {
@@ -194,7 +245,7 @@ fn generate_if_statement_tac(
     let label_not_taken = format!("if_not_taken_{}", label_num);
     let label_end = format!("if_end_{}", label_num);
 
-    let (mut result, decision_val) = generate_expr_tac(condition, code_env, None);
+    let (mut result, decision_val) = generate_expr_tac(condition, code_env, None, None);
     result.push(TacInstr::JmpZero(label_not_taken.clone(), decision_val));
     result.extend(generate_statement_tac(taken, code_env));
     result.push(TacInstr::Jmp(label_end.clone()));

@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use crate::tac::VarSize;
+
 #[derive(Clone, Copy, Debug)]
 pub enum Reg {
     Rsp,
@@ -23,6 +25,15 @@ pub enum Reg {
 }
 
 impl Reg {
+    pub fn get_sized_name(&self, size: VarSize) -> String {
+        match size {
+            VarSize::Byte => self.get_8_bit_name(),
+            VarSize::Word => self.get_16_bit_name(),
+            VarSize::Dword => self.get_32_bit_name(),
+            VarSize::Quad => self.get_64_bit_name(),
+        }
+    }
+
     pub fn get_64_bit_name(&self) -> String {
         match self {
             Reg::Rsp => "rsp".to_owned(),

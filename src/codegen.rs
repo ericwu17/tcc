@@ -6,7 +6,7 @@ pub mod reg;
 pub mod unop;
 use std::collections::HashMap;
 
-use crate::tac::{tac_instr::TacInstr, Identifier, TacVal};
+use crate::tac::{tac_instr::TacInstr, Identifier, TacVal, VarSize};
 
 use self::{
     binop::gen_binop_code, functions::generate_function_call_code, reg::Reg, unop::gen_unop_code,
@@ -35,9 +35,9 @@ impl RegisterAllocator {
 
         let mut bytes_needed = 0;
 
-        for (index, t) in set_of_temporaries.iter().enumerate() {
-            map.insert(*t, Location::Mem((index + 1) * 4));
-            bytes_needed += 4;
+        for identifier in &set_of_temporaries {
+            bytes_needed += identifier.get_num_bytes();
+            map.insert(*identifier, Location::Mem(bytes_needed));
         }
 
         (RegisterAllocator { map }, bytes_needed)
@@ -73,25 +73,80 @@ impl CCode {
 
 #[derive(Debug)]
 pub enum X86Instr {
-    Push { reg: Reg },
-    Pop { reg: Reg },
-    Mov { dst: Location, src: Location },
-    MovImm { dst: Location, imm: i32 },
-    Add { dst: Reg, src: Reg },
-    Sub { dst: Reg, src: Reg },
-    IMul { dst: Reg, src: Reg },
-    SubImm { dst: Reg, imm: i32 },
-    Cdq,               // convert double to quad, sign extends eax into edx:eax
-    Idiv { src: Reg }, // divides rax by src, quotient stored in rax
-    Label { name: String },
-    Jmp { label: String },
-    JmpCC { label: String, condition: CCode },
-    SetCC { dst: Reg, condition: CCode },
-    Test { src: Reg }, // does "test src, src", setting condition flags.
-    Cmp { left: Reg, right: Reg },
-    Not { dst: Reg }, // bitwise complement
-    Neg { dst: Reg }, // negate the number (additive inverse)
-    Call { name: String },
+    Push {
+        reg: Reg,
+    }, // always pushes the 64 bit regs
+    Pop {
+        reg: Reg,
+    }, // always pops the 64 bit regs
+    Mov {
+        dst: Location,
+        src: Location,
+        size: VarSize,
+    },
+    MovImm {
+        dst: Location,
+        imm: i32,
+        size: VarSize,
+    },
+    Add {
+        dst: Reg,
+        src: Reg,
+        size: VarSize,
+    },
+    Sub {
+        dst: Reg,
+        src: Reg,
+        size: VarSize,
+    },
+    IMul {
+        dst: Reg,
+        src: Reg,
+        size: VarSize,
+    },
+    SubImm {
+        dst: Reg,
+        imm: i32,
+        size: VarSize,
+    },
+    Cdq, // convert double to quad, sign extends eax into edx:eax
+    Idiv {
+        src: Reg,
+    }, // divides rax by src, quotient stored in rax
+    Label {
+        name: String,
+    },
+    Jmp {
+        label: String,
+    },
+    JmpCC {
+        label: String,
+        condition: CCode,
+    },
+    SetCC {
+        dst: Reg,
+        condition: CCode,
+    },
+    Test {
+        src: Reg,
+        size: VarSize,
+    }, // does "test src, src", setting condition flags.
+    Cmp {
+        left: Reg,
+        right: Reg,
+        size: VarSize,
+    },
+    Not {
+        dst: Reg,
+        size: VarSize,
+    }, // bitwise complement
+    Neg {
+        dst: Reg,
+        size: VarSize,
+    }, // negate the number (additive inverse)
+    Call {
+        name: String,
+    },
     Syscall,
 }
 
@@ -111,10 +166,12 @@ pub fn generate_x86_code(tac_instrs: &Vec<TacInstr>) -> Vec<X86Instr> {
     result.push(X86Instr::Mov {
         dst: Location::Reg(Reg::Rbp),
         src: Location::Reg(Reg::Rsp),
+        size: VarSize::Quad,
     });
     result.push(X86Instr::SubImm {
         dst: Reg::Rsp,
         imm: num_bytes_needed as i32,
+        size: VarSize::Quad,
     });
 
     for instr in tac_instrs {
@@ -125,6 +182,7 @@ pub fn generate_x86_code(tac_instrs: &Vec<TacInstr>) -> Vec<X86Instr> {
     result.push(X86Instr::Mov {
         dst: Location::Reg(Reg::Rsp),
         src: Location::Reg(Reg::Rbp),
+        size: VarSize::Quad,
     });
     result.push(X86Instr::Pop { reg: Reg::Rbp });
 
@@ -139,6 +197,7 @@ fn gen_x86_for_tac(result: &mut Vec<X86Instr>, instr: &TacInstr, reg_alloc: &Reg
             result.push(X86Instr::MovImm {
                 dst: Location::Reg(Reg::Rax),
                 imm: 231,
+                size: VarSize::Dword,
             });
             result.push(X86Instr::Syscall);
         }
@@ -151,6 +210,7 @@ fn gen_x86_for_tac(result: &mut Vec<X86Instr>, instr: &TacInstr, reg_alloc: &Reg
             result.push(X86Instr::Mov {
                 dst: reg_alloc.get_location(*dst_ident),
                 src: Location::Reg(Reg::Rdi),
+                size: dst_ident.get_size(),
             });
         }
         TacInstr::Label(label_name) => result.push(X86Instr::Label {
@@ -161,7 +221,10 @@ fn gen_x86_for_tac(result: &mut Vec<X86Instr>, instr: &TacInstr, reg_alloc: &Reg
         }),
         TacInstr::JmpZero(label_name, val) => {
             gen_load_val_code(result, val, Reg::Rdi, reg_alloc);
-            result.push(X86Instr::Test { src: Reg::Rdi });
+            result.push(X86Instr::Test {
+                src: Reg::Rdi,
+                size: val.get_size(),
+            });
             result.push(X86Instr::JmpCC {
                 label: label_name.clone(),
                 condition: CCode::E,
@@ -169,7 +232,10 @@ fn gen_x86_for_tac(result: &mut Vec<X86Instr>, instr: &TacInstr, reg_alloc: &Reg
         }
         TacInstr::JmpNotZero(label_name, val) => {
             gen_load_val_code(result, val, Reg::Rdi, reg_alloc);
-            result.push(X86Instr::Test { src: Reg::Rdi });
+            result.push(X86Instr::Test {
+                src: Reg::Rdi,
+                size: val.get_size(),
+            });
             result.push(X86Instr::JmpCC {
                 label: label_name.clone(),
                 condition: CCode::NE,
@@ -188,15 +254,20 @@ fn gen_load_val_code(
     reg_alloc: &RegisterAllocator,
 ) {
     match val {
-        TacVal::Lit(imm) => result.push(X86Instr::MovImm {
-            dst: Location::Reg(reg),
-            imm: *imm,
-        }),
+        TacVal::Lit(imm, size) => {
+            // todo!();
+            result.push(X86Instr::MovImm {
+                dst: Location::Reg(reg),
+                imm: *imm,
+                size: *size,
+            })
+        }
         TacVal::Var(var_ident) => {
             let loc = reg_alloc.get_location(*var_ident);
             result.push(X86Instr::Mov {
                 dst: Location::Reg(reg),
                 src: loc,
+                size: val.get_size(),
             });
         }
     }

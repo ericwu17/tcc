@@ -1,11 +1,13 @@
 use std::collections::HashSet;
 
+use crate::tac::VarSize;
+
 use super::{putchar::generate_putchar_asm, Location, X86Instr};
 
-fn convert_location_to_asm(location: &Location) -> String {
+fn convert_location_to_asm(location: &Location, size: VarSize) -> String {
     match location {
         Location::Mem(offset) => format!("[rbp - {}]", offset),
-        Location::Reg(r) => r.get_default_name(),
+        Location::Reg(r) => r.get_sized_name(size),
     }
 }
 
@@ -13,26 +15,38 @@ pub fn convert_to_asm(instr: &X86Instr) -> String {
     match instr {
         X86Instr::Push { reg } => format!("push {}", reg.get_64_bit_name()),
         X86Instr::Pop { reg } => format!("pop {}", reg.get_64_bit_name()),
-        X86Instr::Mov { dst, src } => format!(
+        X86Instr::Mov { dst, src, size } => format!(
             "mov {}, {}",
-            convert_location_to_asm(dst),
-            convert_location_to_asm(src),
+            convert_location_to_asm(dst, *size),
+            convert_location_to_asm(src, *size),
         ),
-        X86Instr::MovImm { dst, imm } => format!("mov {}, {}", convert_location_to_asm(dst), imm),
-        X86Instr::Add { dst, src } => {
-            format!("add {}, {}", dst.get_default_name(), src.get_default_name())
+        X86Instr::MovImm { dst, imm, size } => {
+            format!("mov {}, {}", convert_location_to_asm(dst, *size), imm)
         }
-        X86Instr::Sub { dst, src } => {
-            format!("sub {}, {}", dst.get_default_name(), src.get_default_name())
-        }
-        X86Instr::IMul { dst, src } => {
+        X86Instr::Add { dst, src, size } => {
             format!(
-                "imul {}, {}",
-                dst.get_default_name(),
-                src.get_default_name()
+                "add {}, {}",
+                dst.get_sized_name(*size),
+                src.get_sized_name(*size)
             )
         }
-        X86Instr::SubImm { dst, imm } => format!("sub {}, {}", dst.get_default_name(), imm),
+        X86Instr::Sub { dst, src, size } => {
+            format!(
+                "sub {}, {}",
+                dst.get_sized_name(*size),
+                src.get_sized_name(*size)
+            )
+        }
+        X86Instr::IMul { dst, src, size } => {
+            format!(
+                "imul {}, {}",
+                dst.get_sized_name(*size),
+                src.get_sized_name(*size)
+            )
+        }
+        X86Instr::SubImm { dst, imm, size } => {
+            format!("sub {}, {}", dst.get_sized_name(*size), imm)
+        }
         X86Instr::Cdq => "cdq".to_owned(),
         X86Instr::Idiv { src } => format!("idiv {}", src.get_default_name()),
         X86Instr::Label { name } => format!(".{}:", name),
@@ -44,18 +58,18 @@ pub fn convert_to_asm(instr: &X86Instr) -> String {
             format!("set{} {}", condition.to_suffix(), dst.get_8_bit_name(),)
         }
 
-        X86Instr::Test { src } => format!(
+        X86Instr::Test { src, size } => format!(
             "test {}, {}",
-            src.get_default_name(),
-            src.get_default_name(),
+            src.get_sized_name(*size),
+            src.get_sized_name(*size),
         ),
-        X86Instr::Cmp { left, right } => format!(
+        X86Instr::Cmp { left, right, size } => format!(
             "cmp {}, {}",
-            left.get_default_name(),
-            right.get_default_name(),
+            left.get_sized_name(*size),
+            right.get_sized_name(*size),
         ),
-        X86Instr::Not { dst } => format!("not {}", dst.get_default_name(),),
-        X86Instr::Neg { dst } => format!("neg {}", dst.get_default_name(),),
+        X86Instr::Not { dst, size } => format!("not {}", dst.get_sized_name(*size),),
+        X86Instr::Neg { dst, size } => format!("neg {}", dst.get_sized_name(*size),),
         X86Instr::Syscall => "syscall".to_owned(),
         X86Instr::Call { name } => format!("call {}", name),
     }

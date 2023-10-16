@@ -14,7 +14,7 @@ pub fn gen_prefix_inc_tac(
     result.push(TacInstr::BinOp(
         temporary_ident,
         TacVal::Var(temporary_ident),
-        TacVal::Lit(1),
+        TacVal::Lit(1, temporary_ident.1),
         BinOp::Plus,
     ));
     if let Some(ident) = target_temp_name {
@@ -33,7 +33,7 @@ pub fn gen_prefix_dec_tac(
     result.push(TacInstr::BinOp(
         temporary_ident,
         TacVal::Var(temporary_ident),
-        TacVal::Lit(1),
+        TacVal::Lit(1, temporary_ident.1),
         BinOp::Minus,
     ));
     if let Some(ident) = target_temp_name {
@@ -51,7 +51,7 @@ pub fn gen_postfix_inc_tac(
     let new_ident = if let Some(ident) = target_temp_name {
         ident
     } else {
-        get_new_temp_name()
+        get_new_temp_name(resolve_variable_to_temp_name(var_name, code_env).1)
     };
     let temporary_ident = resolve_variable_to_temp_name(var_name, code_env);
 
@@ -60,7 +60,7 @@ pub fn gen_postfix_inc_tac(
     result.push(TacInstr::BinOp(
         temporary_ident,
         TacVal::Var(temporary_ident),
-        TacVal::Lit(1),
+        TacVal::Lit(1, new_ident.1),
         BinOp::Plus,
     ));
     (result, TacVal::Var(new_ident))
@@ -75,7 +75,7 @@ pub fn gen_postfix_dec_tac(
     let new_ident = if let Some(ident) = target_temp_name {
         ident
     } else {
-        get_new_temp_name()
+        get_new_temp_name(resolve_variable_to_temp_name(var_name, code_env).1)
     };
     let temporary_ident = resolve_variable_to_temp_name(var_name, code_env);
 
@@ -84,7 +84,7 @@ pub fn gen_postfix_dec_tac(
     result.push(TacInstr::BinOp(
         temporary_ident,
         TacVal::Var(temporary_ident),
-        TacVal::Lit(1),
+        TacVal::Lit(1, new_ident.1),
         BinOp::Minus,
     ));
     (result, TacVal::Var(new_ident))

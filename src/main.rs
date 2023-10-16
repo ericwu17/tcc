@@ -61,7 +61,7 @@ fn main() {
 
     let x86_code = generate_x86_code(&tac_ir);
     if cli.debug {
-        dbg!(&x86_code);
+        // dbg!(&x86_code);
     }
 
     let asm_code = generate_program_asm(&x86_code);

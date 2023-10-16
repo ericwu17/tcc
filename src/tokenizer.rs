@@ -2,7 +2,10 @@ pub mod operator;
 
 use operator::{char_to_operator, chars_to_operator, Op};
 
-use crate::parser::expr_parser::{BinOp, BinOpPrecedenceLevel, UnOp};
+use crate::{
+    parser::expr_parser::{BinOp, BinOpPrecedenceLevel, UnOp},
+    tac::VarSize,
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token {
@@ -13,7 +16,7 @@ pub enum Token {
     IntLit { val: String },
     Identifier { val: String },
     Return,
-    IntT,
+    Type(VarType),
     Semicolon,
     Comma,
     AssignmentEquals,
@@ -26,6 +29,25 @@ pub enum Token {
     For,
     Break,
     Continue,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum VarType {
+    Char,
+    Short,
+    Int,
+    Long,
+}
+
+impl VarType {
+    pub fn to_size(&self) -> VarSize {
+        match self {
+            VarType::Char => VarSize::Byte,
+            VarType::Short => VarSize::Word,
+            VarType::Int => VarSize::Dword,
+            VarType::Long => VarSize::Quad,
+        }
+    }
 }
 
 impl Token {
@@ -170,7 +192,10 @@ pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
 
             match val.as_str() {
                 "return" => tokens.push(Token::Return),
-                "int" => tokens.push(Token::IntT),
+                "int" => tokens.push(Token::Type(VarType::Int)),
+                "long" => tokens.push(Token::Type(VarType::Long)),
+                "short" => tokens.push(Token::Type(VarType::Short)),
+                "char" => tokens.push(Token::Type(VarType::Char)),
                 "if" => tokens.push(Token::If),
                 "else" => tokens.push(Token::Else),
                 "while" => tokens.push(Token::While),
