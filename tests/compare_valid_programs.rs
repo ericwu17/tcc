@@ -21,9 +21,9 @@ fn test_valid_programs() {
     std::env::set_current_dir(TESTS_DIR)
         .expect("could not change directory to the temporary directory");
 
-    let mut TEST_PROGRAMS_DIR = std::env::current_dir().unwrap();
-    TEST_PROGRAMS_DIR.push("programs");
-    test_programs(TEST_PROGRAMS_DIR);
+    let mut test_programs_dir = std::env::current_dir().unwrap();
+    test_programs_dir.push("programs");
+    test_programs(test_programs_dir);
 }
 
 fn test_programs(dir: PathBuf) {
@@ -36,22 +36,27 @@ fn test_programs(dir: PathBuf) {
             continue;
         }
 
-        // println!("Running comparison test for the file {}", path);
-        let INPUT_FILE_DIR = &path.into_os_string().into_string().unwrap();
-        println!("Running comparison test for the file {:?}", INPUT_FILE_DIR);
+        let input_file_dir = &path.into_os_string().into_string().unwrap();
+        println!("Running comparison test for the file {:?}", input_file_dir);
 
         // compile source code with tcc
-        Command::new(TCC_DIR)
-            .arg(INPUT_FILE_DIR)
-            .output()
-            .expect(&format!("tcc could not compile {}", INPUT_FILE_DIR));
+        let tcc_exit_status = Command::new(TCC_DIR)
+            .arg(input_file_dir)
+            .status()
+            .expect(&format!("tcc could not compile {}", input_file_dir));
+        if !tcc_exit_status.success() {
+            panic!(
+                "tcc exited with non-zero exit code {:?}",
+                tcc_exit_status.code()
+            )
+        }
 
         // compile source code with gcc
         Command::new(GCC_DIR)
             .args(["-o", GCC_EXEC])
-            .arg(INPUT_FILE_DIR)
+            .arg(input_file_dir)
             .output()
-            .expect(&format!("gcc could not compile {}", INPUT_FILE_DIR));
+            .expect(&format!("gcc could not compile {}", input_file_dir));
 
         let tcc_output = Command::new(TCC_EXEC)
             .output()
