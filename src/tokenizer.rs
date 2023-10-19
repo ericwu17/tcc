@@ -1,11 +1,12 @@
 pub mod operator;
+pub mod source_cursor;
 
+use self::source_cursor::{SourceCodeCursor, SourcePtr};
+use crate::errors::display::err_display;
+use crate::parser::expr_parser::{BinOp, BinOpPrecedenceLevel, UnOp};
+use crate::tac::VarSize;
 use operator::{char_to_operator, chars_to_operator, Op};
-
-use crate::{
-    parser::expr_parser::{BinOp, BinOpPrecedenceLevel, UnOp},
-    tac::VarSize,
-};
+use std::fmt;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token {
@@ -37,6 +38,17 @@ pub enum VarType {
     Short,
     Int,
     Long,
+}
+
+impl fmt::Display for VarType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            VarType::Char => write!(f, "char"),
+            VarType::Short => write!(f, "short"),
+            VarType::Int => write!(f, "int"),
+            VarType::Long => write!(f, "long"),
+        }
+    }
 }
 
 impl VarType {
@@ -97,37 +109,10 @@ impl Token {
     }
 }
 
-pub struct SourceCodeCursor {
-    contents: Vec<char>,
-    index: usize,
-}
-
-impl SourceCodeCursor {
-    fn new(contents: String) -> Self {
-        SourceCodeCursor {
-            contents: contents.chars().collect(),
-            index: 0,
-        }
-    }
-
-    fn peek(&self) -> Option<&char> {
-        self.contents.get(self.index)
-    }
-    fn peek_nth(&self, n: usize) -> Option<&char> {
-        // peek_nth(1) is equivalent to peek()
-        self.contents.get(self.index + n - 1)
-    }
-
-    fn next(&mut self) -> Option<&char> {
-        self.index += 1;
-        self.contents.get(self.index - 1)
-    }
-}
-
-pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
+pub fn get_tokens(source_code_contents: String) -> Vec<(Token, SourcePtr)> {
     let mut cursor = SourceCodeCursor::new(source_code_contents);
 
-    let mut tokens: Vec<Token> = Vec::new();
+    let mut tokens: Vec<(Token, SourcePtr)> = Vec::new();
 
     while cursor.peek().is_some() {
         let next_char: char = *cursor.peek().unwrap();
@@ -138,74 +123,81 @@ pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
             while cursor.peek().is_some() && cursor.next() != Some(&'\n') {}
         } else if next_char == '{' {
             cursor.next();
-            tokens.push(Token::OpenBrace);
+            tokens.push((Token::OpenBrace, cursor.get_last_pos()));
         } else if next_char == '}' {
             cursor.next();
-            tokens.push(Token::CloseBrace);
+            tokens.push((Token::CloseBrace, cursor.get_last_pos()));
         } else if next_char == '(' {
             cursor.next();
-            tokens.push(Token::OpenParen);
+            tokens.push((Token::OpenParen, cursor.get_last_pos()));
         } else if next_char == ')' {
             cursor.next();
-            tokens.push(Token::CloseParen);
+            tokens.push((Token::CloseParen, cursor.get_last_pos()));
         } else if next_char == ';' {
             cursor.next();
-            tokens.push(Token::Semicolon);
+            tokens.push((Token::Semicolon, cursor.get_last_pos()));
         } else if next_char == ':' {
             cursor.next();
-            tokens.push(Token::Colon);
+            tokens.push((Token::Colon, cursor.get_last_pos()));
         } else if next_char == '?' {
             cursor.next();
-            tokens.push(Token::QuestionMark);
+            tokens.push((Token::QuestionMark, cursor.get_last_pos()));
         } else if next_char == ',' {
             cursor.next();
-            tokens.push(Token::Comma);
+            tokens.push((Token::Comma, cursor.get_last_pos()));
         } else if let Some(op) = chars_to_operator((next_char, next_next_char)) {
             // must consume 2 characters for an operator that is 2 characters long
             cursor.next();
+            let pos = cursor.get_last_pos();
             cursor.next();
-            tokens.push(Token::Op(op));
+            tokens.push((Token::Op(op), pos));
         } else if next_char == '=' {
             cursor.next();
-            tokens.push(Token::AssignmentEquals);
+            tokens.push((Token::AssignmentEquals, cursor.get_last_pos()));
         } else if let Some(op) = char_to_operator(next_char) {
             cursor.next();
-            tokens.push(Token::Op(op));
+            tokens.push((Token::Op(op), cursor.get_last_pos()));
         } else if next_char.is_ascii_whitespace() {
             // ignore all whitespace
             cursor.next();
         } else if next_char.is_digit(10) {
             // handle an integer literal
             let mut val = String::new();
+            let mut pos: SourcePtr = cursor.get_last_pos();
+            pos.col += 1;
             while cursor.peek().is_some() && (*cursor.peek().unwrap()).is_ascii_alphanumeric() {
                 val.push(*cursor.next().unwrap());
             }
-            tokens.push(Token::IntLit { val });
+            tokens.push((Token::IntLit { val }, pos));
         } else if next_char.is_ascii_alphabetic() {
             // handle an identifier or C keyword
             let mut val = String::new();
-            while cursor.peek().is_some() && (*cursor.peek().unwrap()).is_ascii_alphanumeric()
-                || (*cursor.peek().unwrap()) == '_'
+            let mut pos = cursor.get_last_pos();
+            pos.col += 1;
+            while cursor.peek().is_some()
+                && ((*cursor.peek().unwrap()).is_ascii_alphanumeric()
+                    || (*cursor.peek().unwrap()) == '_')
             {
                 val.push(*cursor.next().unwrap());
             }
 
             match val.as_str() {
-                "return" => tokens.push(Token::Return),
-                "int" => tokens.push(Token::Type(VarType::Int)),
-                "long" => tokens.push(Token::Type(VarType::Long)),
-                "short" => tokens.push(Token::Type(VarType::Short)),
-                "char" => tokens.push(Token::Type(VarType::Char)),
-                "if" => tokens.push(Token::If),
-                "else" => tokens.push(Token::Else),
-                "while" => tokens.push(Token::While),
-                "break" => tokens.push(Token::Break),
-                "continue" => tokens.push(Token::Continue),
-                "for" => tokens.push(Token::For),
-                _ => tokens.push(Token::Identifier { val }),
+                "return" => tokens.push((Token::Return, pos)),
+                "int" => tokens.push((Token::Type(VarType::Int), pos)),
+                "long" => tokens.push((Token::Type(VarType::Long), pos)),
+                "short" => tokens.push((Token::Type(VarType::Short), pos)),
+                "char" => tokens.push((Token::Type(VarType::Char), pos)),
+                "if" => tokens.push((Token::If, pos)),
+                "else" => tokens.push((Token::Else, pos)),
+                "while" => tokens.push((Token::While, pos)),
+                "break" => tokens.push((Token::Break, pos)),
+                "continue" => tokens.push((Token::Continue, pos)),
+                "for" => tokens.push((Token::For, pos)),
+                _ => tokens.push((Token::Identifier { val }, pos)),
             }
         } else if next_char == '\'' {
             cursor.next(); // consume the single quote char
+            let pos = cursor.get_last_pos();
 
             let mut val = String::new();
             while cursor.peek().is_some()
@@ -218,12 +210,15 @@ pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
                 }
             }
             if cursor.next() != Some(&'\'') {
-                panic!("expected a closing `'` for character expression!")
+                err_display("expected a closing `'` for character expression!", pos)
             }
 
-            tokens.push(Token::IntLit {
-                val: convert_str_to_char_int(val),
-            })
+            tokens.push((
+                Token::IntLit {
+                    val: convert_str_to_char_int(val, pos),
+                },
+                pos,
+            ))
         } else {
             println!("you messed up, unrecognized character {}", next_char);
             std::process::exit(1);
@@ -233,14 +228,19 @@ pub fn get_tokens(source_code_contents: String) -> Vec<Token> {
     tokens
 }
 
-fn convert_str_to_char_int(val: String) -> String {
+fn convert_str_to_char_int(val: String, pos: SourcePtr) -> String {
     match val.len() {
         1 => {
             let res = val.chars().next().unwrap();
             format!("{}", res as i32)
         }
         2 => {
-            assert_eq!(val.chars().nth(0).unwrap(), '\\');
+            if val.chars().nth(0).unwrap() != '\\' {
+                err_display(
+                    "character literal must start with backslash or be 1 character",
+                    pos,
+                );
+            }
 
             match val.chars().nth(1).unwrap() {
                 't' => "9".to_owned(),
@@ -248,14 +248,13 @@ fn convert_str_to_char_int(val: String) -> String {
                 '\\' => "92".to_owned(),
                 '0' => "0".to_owned(),
                 '\'' => "39".to_owned(),
-                _ => {
-                    panic!("unrecognized character escape sequence: '{}'", val)
-                }
+                _ => err_display(
+                    format!("unrecognized character escape sequence: '{}'", val),
+                    pos,
+                ),
             }
         }
 
-        _ => {
-            panic!("invalid length for character literal");
-        }
+        _ => err_display(format!("invalid char literal: '{}'", val), pos),
     }
 }

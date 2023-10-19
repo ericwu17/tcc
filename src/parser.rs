@@ -1,9 +1,11 @@
 pub mod expr_parser;
 pub mod for_loop_parser;
-use crate::{
-    parser::expr_parser::generate_expr_ast,
-    tokenizer::{Token, VarType},
-};
+pub mod token_cursor;
+
+use crate::errors::display::err_display;
+use crate::parser::{expr_parser::generate_expr_ast, token_cursor::TokenCursor};
+use crate::tokenizer::source_cursor::SourcePtr;
+use crate::tokenizer::{Token, VarType};
 use expr_parser::{BinOpPrecedenceLevel, Expr};
 use for_loop_parser::generate_for_loop_ast;
 
@@ -32,34 +34,12 @@ pub enum Statement {
     Empty,
 }
 
-pub struct TokenCursor {
-    contents: Vec<Token>,
-    index: usize,
-}
-
-impl TokenCursor {
-    pub fn new(contents: Vec<Token>) -> Self {
-        TokenCursor { contents, index: 0 }
-    }
-
-    fn peek(&self) -> Option<&Token> {
-        self.contents.get(self.index)
-    }
-    fn peek_nth(&self, n: usize) -> Option<&Token> {
-        // peek_nth(1) is equivalent to peek()
-        self.contents.get(self.index + n - 1)
-    }
-
-    fn next(&mut self) -> Option<&Token> {
-        self.index += 1;
-        self.contents.get(self.index - 1)
-    }
-}
-
-pub fn generate_program_ast(tokens: Vec<Token>) -> Program {
+pub fn generate_program_ast(tokens: Vec<(Token, SourcePtr)>) -> Program {
     let mut tokens = TokenCursor::new(tokens);
     let f = generate_function_ast(&mut tokens);
-    assert_eq!(tokens.next(), None);
+    if tokens.next() != None {
+        err_display("expected EOF", tokens.get_last_ptr())
+    }
     Program { function: f }
 }
 
@@ -71,18 +51,28 @@ fn generate_function_ast(tokens: &mut TokenCursor) -> Function {
             // ok
         }
         _ => {
-            panic!("function definitions must begin with the type that they return!")
+            err_display(
+                "function definitions must begin with a type that they return!",
+                tokens.get_last_ptr(),
+            );
         }
     }
 
     if let Some(Token::Identifier { val }) = tokens.next() {
         function_name = val.clone();
     } else {
-        panic!();
+        err_display(
+            "function name must be an identifier!",
+            tokens.get_last_ptr(),
+        );
     }
 
-    assert_eq!(tokens.next(), Some(&Token::OpenParen));
-    assert_eq!(tokens.next(), Some(&Token::CloseParen));
+    if !(tokens.next() == Some(&Token::OpenParen) && tokens.next() == Some(&Token::CloseParen)) {
+        err_display(
+            "expected `()` in main function declaration!",
+            tokens.get_last_ptr(),
+        )
+    }
 
     let body = generate_compound_stmt_ast(tokens);
 
@@ -93,48 +83,58 @@ fn generate_function_ast(tokens: &mut TokenCursor) -> Function {
 }
 
 fn generate_compound_stmt_ast(tokens: &mut TokenCursor) -> Vec<Statement> {
-    assert_eq!(tokens.next(), Some(&Token::OpenBrace));
+    if tokens.next() != Some(&Token::OpenBrace) {
+        err_display(
+            "expected compound statement to begin with '{'",
+            tokens.get_last_ptr(),
+        );
+    }
     let mut statements = Vec::new();
 
     while tokens.peek().is_some() && *tokens.peek().unwrap() != Token::CloseBrace {
         statements.push(generate_statement_ast(tokens));
     }
 
-    assert_eq!(tokens.next(), Some(&Token::CloseBrace));
+    if tokens.next() != Some(&Token::CloseBrace) {
+        err_display(
+            "expected compound statement to end with '}'",
+            tokens.get_last_ptr(),
+        );
+    }
     return statements;
 }
 
 fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
     let expr;
+    let stmt;
+    let mut expect_trailing_semicolon = true;
 
     match tokens.peek() {
         Some(Token::Continue) => {
-            tokens.next();
-            assert_eq!(tokens.next(), Some(&Token::Semicolon));
-            return Statement::Continue;
+            tokens.next(); // consume the return
+            stmt = Statement::Continue;
         }
         Some(Token::Break) => {
-            tokens.next();
-            assert_eq!(tokens.next(), Some(&Token::Semicolon));
-            return Statement::Break;
+            tokens.next(); // consume the "break"
+            stmt = Statement::Break;
         }
         Some(Token::Return) => {
             tokens.next(); // consume the "return"
-
             expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
-
-            assert_eq!(tokens.next(), Some(&Token::Semicolon));
-            return Statement::Return(expr);
+            stmt = Statement::Return(expr);
         }
         Some(Token::Type(t)) => {
             let t = t.clone();
-            tokens.next();
+            tokens.next(); // consume the type keyword
             let decl_identifier;
             let mut optional_expr = None;
             if let Some(Token::Identifier { val }) = tokens.next() {
                 decl_identifier = val.clone();
             } else {
-                panic!();
+                err_display(
+                    format!("must have identifier after declaration of type {}", t),
+                    tokens.get_last_ptr(),
+                );
             }
 
             if tokens.peek() == Some(&Token::AssignmentEquals) {
@@ -144,20 +144,23 @@ fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
                     BinOpPrecedenceLevel::lowest_level(),
                 ))
             }
-            assert_eq!(tokens.next(), Some(&Token::Semicolon));
-            return Statement::Declare(decl_identifier, optional_expr, t);
+            stmt = Statement::Declare(decl_identifier, optional_expr, t);
         }
         Some(Token::OpenBrace) => {
             let compound_stmt = generate_compound_stmt_ast(tokens);
             // note that a compound statement does not end in a semicolon, so there is no need here to consume a semicolon.
-            return Statement::CompoundStmt(compound_stmt);
+            expect_trailing_semicolon = false;
+            stmt = Statement::CompoundStmt(compound_stmt);
         }
         Some(Token::If) => {
-            // consume the "if"
-            tokens.next();
-            assert_eq!(tokens.next(), Some(&Token::OpenParen));
+            tokens.next(); // consume the "if"
+            if tokens.next() != Some(&Token::OpenParen) {
+                err_display("expected open paren", tokens.get_last_ptr());
+            }
             let conditional_expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
-            assert_eq!(tokens.next(), Some(&Token::CloseParen));
+            if tokens.next() != Some(&Token::CloseParen) {
+                err_display("expected close paren", tokens.get_last_ptr());
+            }
             let taken_branch_stmt = generate_statement_ast(tokens);
             let mut not_taken_branch_stmt = None;
             if tokens.peek() == Some(&Token::Else) {
@@ -166,7 +169,8 @@ fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
                 not_taken_branch_stmt = Some(Box::new(generate_statement_ast(tokens)));
             }
 
-            return Statement::If(
+            expect_trailing_semicolon = false;
+            stmt = Statement::If(
                 conditional_expr,
                 Box::new(taken_branch_stmt),
                 not_taken_branch_stmt,
@@ -176,26 +180,38 @@ fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
             // consume the "while"
             tokens.next();
 
-            assert_eq!(tokens.next(), Some(&Token::OpenParen));
+            if tokens.next() != Some(&Token::OpenParen) {
+                err_display("expected open paren", tokens.get_last_ptr());
+            }
             let conditional = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
-            assert_eq!(tokens.next(), Some(&Token::CloseParen));
+            if tokens.next() != Some(&Token::CloseParen) {
+                err_display("expected close paren", tokens.get_last_ptr());
+            }
 
             let body = generate_statement_ast(tokens);
-            return Statement::While(conditional, Box::new(body));
+
+            expect_trailing_semicolon = false;
+            stmt = Statement::While(conditional, Box::new(body));
         }
         Some(Token::Semicolon) => {
-            // consume the semicolon
-            tokens.next();
-            return Statement::Empty;
+            stmt = Statement::Empty;
         }
         Some(Token::For) => {
-            return generate_for_loop_ast(tokens);
+            expect_trailing_semicolon = false;
+            stmt = generate_for_loop_ast(tokens);
         }
 
         _ => {
             expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
-            assert_eq!(tokens.next(), Some(&Token::Semicolon));
-            return Statement::Expr(expr);
+            stmt = Statement::Expr(expr);
         }
     }
+
+    if expect_trailing_semicolon {
+        if tokens.next() != Some(&Token::Semicolon) {
+            err_display("expected semicolon after statement", tokens.get_last_ptr())
+        }
+    }
+
+    return stmt;
 }

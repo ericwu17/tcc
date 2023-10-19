@@ -23,7 +23,10 @@ impl RegisterAllocator {
         for instr in tac_instrs {
             for ident in instr.get_read_identifiers() {
                 if !set_of_temporaries.contains(&ident) {
-                    panic!("read from temporary without first writing: {:?}", ident);
+                    eprintln!(
+                        "warning: found read from temporary {:?} with writing first.",
+                        ident
+                    );
                 }
             }
             if let Some(ident) = instr.get_written_identifier() {

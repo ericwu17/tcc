@@ -1,4 +1,5 @@
 mod codegen;
+mod errors;
 mod parser;
 mod tac;
 mod tokenizer;
@@ -84,8 +85,11 @@ fn assemble_and_link() {
         .output()
         .expect("failed to execute assembler process");
     if output.status.code() != Some(0) {
-        dbg!(output);
-        panic!();
+        dbg!(&output);
+        panic!(
+            "assembler processed exited with code {:?}",
+            output.status.code()
+        )
     }
 
     let output = Command::new("ld")
@@ -94,8 +98,11 @@ fn assemble_and_link() {
         .output()
         .expect("failed to execute linker process");
     if output.status.code() != Some(0) {
-        dbg!(output);
-        panic!();
+        dbg!(&output);
+        panic!(
+            "linker processed exited with code {:?}",
+            output.status.code()
+        )
     }
 
     let output = Command::new("rm")
@@ -104,6 +111,6 @@ fn assemble_and_link() {
         .expect("failed to execute process to remove object file");
     if output.status.code() != Some(0) {
         dbg!(output);
-        panic!();
+        panic!("failed to execute process to remove object file");
     }
 }

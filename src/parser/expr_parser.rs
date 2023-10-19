@@ -1,4 +1,5 @@
 use super::TokenCursor;
+use crate::errors::display::err_display;
 use crate::tokenizer::{operator::Op, Token};
 
 #[derive(Debug)]
@@ -129,7 +130,16 @@ pub fn generate_expr_ast(
             // handle ternary case. Note that ternaries have the lowest precedence level, so we need to check the precedence level.
             tokens.next();
             let first_expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
-            assert_eq!(tokens.next(), Some(&Token::Colon));
+            if tokens.next() != Some(&Token::Colon) {
+                err_display(
+                    format!(
+                        "expected colon in ternary expression, found {:?}",
+                        tokens.last().unwrap()
+                    ),
+                    tokens.get_last_ptr(),
+                )
+            }
+
             let second_expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
 
             return Expr::Ternary(Box::new(expr), Box::new(first_expr), Box::new(second_expr));
@@ -159,11 +169,19 @@ pub fn generate_expr_ast(
 fn generate_factor_ast(tokens: &mut TokenCursor) -> Expr {
     match tokens.peek() {
         Some(Token::OpenParen) => {
-            tokens.next();
+            tokens.next(); // consume opening parenthesis
 
             let expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
 
-            assert_eq!(tokens.next(), Some(&Token::CloseParen));
+            if tokens.next() != Some(&Token::CloseParen) {
+                err_display(
+                    format!(
+                        "expected closing parenthesis, found {:?}",
+                        tokens.last().unwrap()
+                    ),
+                    tokens.get_last_ptr(),
+                )
+            }
             return expr;
         }
         Some(token) if token.to_un_op().is_some() => {
@@ -191,7 +209,15 @@ fn generate_factor_ast(tokens: &mut TokenCursor) -> Expr {
             } else if tokens.peek() == Some(&Token::OpenParen) {
                 tokens.next(); // consume the open paren
                 let args = parse_function_args(tokens);
-                assert_eq!(tokens.next(), Some(&Token::CloseParen));
+                if tokens.next() != Some(&Token::CloseParen) {
+                    err_display(
+                        format!(
+                            "expected closing parenthesis, found {:?}",
+                            tokens.last().unwrap()
+                        ),
+                        tokens.get_last_ptr(),
+                    )
+                }
                 return Expr::FunctionCall(val, args);
             }
             return Expr::Var(val);
@@ -207,13 +233,16 @@ fn generate_factor_ast(tokens: &mut TokenCursor) -> Expr {
                         return Expr::PrefixDec(val.clone());
                     }
                 }
-                _ => panic!("expected an identifier after the prefix inc/dec token"),
+                _ => err_display(
+                    "expected an identifier after the double inc/dec token",
+                    tokens.get_last_ptr(),
+                ),
             }
         }
-        _ => {
-            dbg!(tokens.peek());
-            panic!();
-        }
+        _ => err_display(
+            format!("unexpected token: {:?}", tokens.peek()),
+            tokens.get_last_ptr(),
+        ),
     }
 }
 

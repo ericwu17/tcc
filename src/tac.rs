@@ -5,6 +5,7 @@ pub mod loops;
 pub mod prefix_postfix_inc_dec;
 pub mod tac_instr;
 
+use crate::errors::check_vars::check_vars;
 use crate::parser::{expr_parser::Expr, Program, Statement};
 
 use self::{
@@ -83,7 +84,6 @@ impl fmt::Debug for TacVal {
             TacVal::Lit(val, var_size) => write!(f, "{}{}", val, var_size.to_letter()),
             TacVal::Var(ident) => write!(f, "{:?}", ident),
         }
-        // write!(f, "Point [{} {}]", self.x, self.y)
     }
 }
 
@@ -129,6 +129,7 @@ pub fn generate_tac(program: Program) -> Vec<TacInstr> {
     let mut result = Vec::new();
 
     assert_eq!(program.function.name, "main");
+    check_vars(&program);
 
     let routine = generate_compound_stmt_tac(&program.function.body, &mut CodeEnv::new());
     result.extend(routine);
@@ -174,7 +175,10 @@ fn generate_statement_tac(statement: &Statement, code_env: &mut CodeEnv) -> Vec<
             let last_elem_index = var_map_list.len() - 1;
             let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
             if this_scopes_variable_map.get(var_name).is_some() {
-                panic!("doubly declared variable: {}", var_name);
+                panic!(
+                    "doubly declared variable (should have been caught by check_vars): {}",
+                    var_name
+                );
             }
             let var_temp_loc = get_new_temp_name(t.to_size());
 
@@ -232,7 +236,8 @@ fn resolve_variable_to_temp_name(name: &String, code_env: &CodeEnv) -> Identifie
             return *name;
         }
     }
-    panic!("undeclared variable: {}", name);
+    // unreachable because check_vars should have already checked that each variable was declared properly.
+    unreachable!()
 }
 
 fn generate_if_statement_tac(
