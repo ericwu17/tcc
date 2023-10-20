@@ -15,10 +15,6 @@ pub fn generate_function_call_code(
     assert!(optional_ident.is_some());
     let function_return_val_ident = optional_ident.unwrap();
 
-    let argument = args.get(0).unwrap();
-
-    gen_load_val_code(result, argument, Reg::Rdi, reg_alloc);
-
     for (index, arg) in args.iter().enumerate() {
         if index < 6 {
             let arg_reg = match index {
