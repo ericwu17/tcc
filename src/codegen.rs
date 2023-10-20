@@ -9,7 +9,10 @@ use std::collections::HashMap;
 use crate::tac::{tac_func::TacFunc, tac_instr::TacInstr, Identifier, TacVal, VarSize};
 
 use self::{
-    binop::gen_binop_code, functions::generate_function_call_code, reg::Reg, unop::gen_unop_code,
+    binop::gen_binop_code,
+    functions::{gen_load_arg_code, generate_function_call_code},
+    reg::Reg,
+    unop::gen_unop_code,
 };
 
 pub struct RegisterAllocator {
@@ -162,6 +165,7 @@ pub enum X86Instr {
 pub enum Location {
     Reg(Reg),
     Mem(usize), // usize represents offset from rbp
+    MemAbove(usize),
 }
 
 pub fn generate_x86_code(tac_funcs: &Vec<TacFunc>) -> Vec<X86Instr> {
@@ -298,32 +302,5 @@ fn gen_load_val_code(
                 });
             }
         }
-    }
-}
-
-fn gen_load_arg_code(
-    result: &mut Vec<X86Instr>,
-    ident: &Identifier,
-    arg_num: usize,
-    reg_alloc: &RegisterAllocator,
-) {
-    if arg_num < 6 {
-        let source_reg = match arg_num {
-            0 => Reg::Rdi,
-            1 => Reg::Rsi,
-            2 => Reg::Rdx,
-            3 => Reg::Rcx,
-            4 => Reg::R8,
-            5 => Reg::R9,
-            _ => unreachable!(),
-        };
-
-        result.push(X86Instr::Mov {
-            dst: reg_alloc.get_location(*ident),
-            src: Location::Reg(source_reg),
-            size: ident.get_size(),
-        });
-    } else {
-        todo!();
     }
 }

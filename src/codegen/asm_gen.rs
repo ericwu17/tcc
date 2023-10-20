@@ -7,6 +7,7 @@ use super::{putchar::generate_putchar_asm, Location, X86Instr};
 fn convert_location_to_asm(location: &Location, size: VarSize) -> String {
     match location {
         Location::Mem(offset) => format!("[rbp - {}]", offset),
+        Location::MemAbove(offset) => format!("[rbp + {}]", offset),
         Location::Reg(r) => r.get_sized_name(size),
     }
 }
