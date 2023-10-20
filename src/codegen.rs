@@ -6,7 +6,7 @@ pub mod reg;
 pub mod unop;
 use std::collections::HashMap;
 
-use crate::tac::{tac_instr::TacInstr, Identifier, TacVal, VarSize};
+use crate::tac::{tac_func::TacFunc, tac_instr::TacInstr, Identifier, TacVal, VarSize};
 
 use self::{
     binop::gen_binop_code, functions::generate_function_call_code, reg::Reg, unop::gen_unop_code,
@@ -74,7 +74,7 @@ impl CCode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum X86Instr {
     Push {
         reg: Reg,
@@ -154,20 +154,37 @@ pub enum X86Instr {
         size: VarSize,
     },
     Syscall,
+    Ret,
+    StartLabel,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Location {
     Reg(Reg),
     Mem(usize), // usize represents offset from rbp
 }
 
-pub fn generate_x86_code(tac_instrs: &Vec<TacInstr>) -> Vec<X86Instr> {
+pub fn generate_x86_code(tac_funcs: &Vec<TacFunc>) -> Vec<X86Instr> {
     let mut result = Vec::new();
 
-    let (reg_alloc, num_bytes_needed) = RegisterAllocator::new(tac_instrs);
+    for func in tac_funcs {
+        generate_function_x86(&mut result, func);
+    }
+
+    result
+}
+
+fn generate_function_x86(result: &mut Vec<X86Instr>, function: &TacFunc) {
+    let (reg_alloc, num_bytes_needed) = RegisterAllocator::new(&function.body);
 
     // FUNCTION PROLOGUE
+    if function.name == "main" {
+        result.push(X86Instr::StartLabel);
+    } else {
+        result.push(X86Instr::Label {
+            name: function.name.clone(),
+        });
+    }
     result.push(X86Instr::Push { reg: Reg::Rbp });
     result.push(X86Instr::Mov {
         dst: Location::Reg(Reg::Rbp),
@@ -180,19 +197,9 @@ pub fn generate_x86_code(tac_instrs: &Vec<TacInstr>) -> Vec<X86Instr> {
         size: VarSize::Quad,
     });
 
-    for instr in tac_instrs {
-        gen_x86_for_tac(&mut result, instr, &reg_alloc);
+    for instr in &function.body {
+        gen_x86_for_tac(result, instr, &reg_alloc);
     }
-
-    // FUNCTION EPILOGUE
-    result.push(X86Instr::Mov {
-        dst: Location::Reg(Reg::Rsp),
-        src: Location::Reg(Reg::Rbp),
-        size: VarSize::Quad,
-    });
-    result.push(X86Instr::Pop { reg: Reg::Rbp });
-
-    result
 }
 
 fn gen_x86_for_tac(result: &mut Vec<X86Instr>, instr: &TacInstr, reg_alloc: &RegisterAllocator) {
@@ -250,6 +257,18 @@ fn gen_x86_for_tac(result: &mut Vec<X86Instr>, instr: &TacInstr, reg_alloc: &Reg
         TacInstr::Call(function_name, args, optional_ident) => {
             generate_function_call_code(result, function_name, args, *optional_ident, reg_alloc)
         }
+        TacInstr::Return(val) => {
+            gen_load_val_code(result, val, Reg::Rax, reg_alloc);
+            // FUNCTION EPILOGUE: generate this before each return statement in function
+            result.push(X86Instr::Mov {
+                dst: Location::Reg(Reg::Rsp),
+                src: Location::Reg(Reg::Rbp),
+                size: VarSize::Quad,
+            });
+            result.push(X86Instr::Pop { reg: Reg::Rbp });
+            result.push(X86Instr::Ret);
+        }
+        TacInstr::LoadArg(ident, arg_num) => gen_load_arg_code(result, ident, *arg_num, reg_alloc),
     }
 }
 
@@ -279,5 +298,32 @@ fn gen_load_val_code(
                 });
             }
         }
+    }
+}
+
+fn gen_load_arg_code(
+    result: &mut Vec<X86Instr>,
+    ident: &Identifier,
+    arg_num: usize,
+    reg_alloc: &RegisterAllocator,
+) {
+    if arg_num < 6 {
+        let source_reg = match arg_num {
+            0 => Reg::Rdi,
+            1 => Reg::Rsi,
+            2 => Reg::Rdx,
+            3 => Reg::Rcx,
+            4 => Reg::R8,
+            5 => Reg::R9,
+            _ => unreachable!(),
+        };
+
+        result.push(X86Instr::Mov {
+            dst: reg_alloc.get_location(*ident),
+            src: Location::Reg(source_reg),
+            size: ident.get_size(),
+        });
+    } else {
+        todo!();
     }
 }

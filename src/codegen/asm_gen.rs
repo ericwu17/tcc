@@ -71,12 +71,14 @@ pub fn convert_to_asm(instr: &X86Instr) -> String {
         X86Instr::Not { dst, size } => format!("not {}", dst.get_sized_name(*size),),
         X86Instr::Neg { dst, size } => format!("neg {}", dst.get_sized_name(*size),),
         X86Instr::Syscall => "syscall".to_owned(),
-        X86Instr::Call { name } => format!("call {}", name),
+        X86Instr::Call { name } => format!("call .{}", name),
         X86Instr::SignExtend { reg, size } => format!(
             "movsx {}, {}",
             reg.get_64_bit_name(),
             reg.get_sized_name(*size)
         ),
+        X86Instr::Ret => "ret".to_owned(),
+        X86Instr::StartLabel => "_start:".to_owned(),
     }
 }
 
@@ -86,13 +88,12 @@ pub fn generate_program_asm(instrs: &Vec<X86Instr>) -> String {
     let indent = "  ";
 
     result.push_str("global _start\n");
-    result.push_str("_start:\n");
 
     let mut called_functions = HashSet::new();
 
     for instr in instrs {
         let instr_string = convert_to_asm(instr);
-        if !instr_string.starts_with(".") {
+        if !instr_string.starts_with(".") && instr != &X86Instr::StartLabel {
             // we assume only labels begin with ".", and labels should not be indented.s
             result.push_str(indent);
         }

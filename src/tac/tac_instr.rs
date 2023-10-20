@@ -6,6 +6,7 @@ use super::{Identifier, TacVal};
 
 pub enum TacInstr {
     Exit(TacVal),
+    Return(TacVal),
     BinOp(Identifier, TacVal, TacVal, BinOp),
     UnOp(Identifier, TacVal, UnOp),
     Copy(Identifier, TacVal),
@@ -14,6 +15,7 @@ pub enum TacInstr {
     JmpZero(String, TacVal),
     JmpNotZero(String, TacVal),
     Call(String, Vec<TacVal>, Option<Identifier>),
+    LoadArg(Identifier, usize), //loads an argument of the function, emitted at the beginning of the function body
 }
 
 impl TacInstr {
@@ -33,8 +35,12 @@ impl TacInstr {
             | TacInstr::Jmp(..)
             | TacInstr::Exit(..)
             | TacInstr::JmpNotZero(..)
-            | TacInstr::JmpZero(..) => {}
+            | TacInstr::JmpZero(..)
+            | TacInstr::Return(_) => {}
             TacInstr::Call(_, _, optional_ident) => result = *optional_ident,
+            TacInstr::LoadArg(ident, _) => {
+                result = Some(*ident);
+            }
         }
         result
     }
@@ -65,7 +71,7 @@ impl TacInstr {
                     result.push(*ident);
                 }
             }
-            TacInstr::Label(..) | TacInstr::Jmp(..) => {}
+            TacInstr::Label(..) | TacInstr::Jmp(..) | TacInstr::LoadArg(_, _) => {}
             TacInstr::JmpNotZero(_, v) => {
                 if let TacVal::Var(ident) = v {
                     result.push(*ident);
@@ -81,6 +87,11 @@ impl TacInstr {
                     if let TacVal::Var(ident) = arg {
                         result.push(*ident);
                     }
+                }
+            }
+            TacInstr::Return(v) => {
+                if let TacVal::Var(ident) = v {
+                    result.push(*ident);
                 }
             }
         }
@@ -119,6 +130,12 @@ impl fmt::Debug for TacInstr {
                 None => write!(f, "call {}({:?})", name, args),
                 Some(ident) => write!(f, "{:?} = call {}({:?})", ident, name, args),
             },
+            TacInstr::Return(v) => {
+                write!(f, "return {:?}", v)
+            }
+            TacInstr::LoadArg(ident, index) => {
+                write!(f, "{:?} is argument {}", ident, index)
+            }
         }
     }
 }

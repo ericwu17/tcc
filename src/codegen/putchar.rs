@@ -1,6 +1,6 @@
 pub fn generate_putchar_asm() -> String {
     let result = "
-putchar:
+.putchar:
   sub rsp, 4
   mov [rsp], edi
   mov rsi, rsp

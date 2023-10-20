@@ -7,11 +7,15 @@ use crate::parser::{expr_parser::Expr, Program, Statement};
 // and verifies that there are no references to undeclared variables
 // or doubly-declared variables.
 pub fn check_vars(program: &Program) {
-    assert_eq!(program.function.name, "main");
+    for function in &program.functions {
+        let body = &function.body;
+        let mut known_vars = HashSet::new();
+        for (arg_name, _) in &function.args {
+            known_vars.insert(arg_name.clone());
+        }
 
-    let body = &program.function.body;
-
-    check_stmts_vars(body, HashSet::new());
+        check_stmts_vars(body, known_vars);
+    }
 }
 
 pub fn check_stmts_vars(stmts: &Vec<Statement>, mut known_var_names: HashSet<String>) {
@@ -33,8 +37,8 @@ fn check_stmt_vars(
     match stmt {
         Statement::Continue | Statement::Break | Statement::Empty => {}
         Statement::Return(expr) => check_expr_vars(expr, known_var_names),
-        Statement::Declare(var_name, optinal_expr, _) => {
-            if let Some(expr) = optinal_expr {
+        Statement::Declare(var_name, optional_expr, _) => {
+            if let Some(expr) = optional_expr {
                 check_expr_vars(expr, known_var_names);
             }
             if vars_decl_local_scope.contains(var_name) {

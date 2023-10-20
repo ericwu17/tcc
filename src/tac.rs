@@ -3,11 +3,15 @@ use std::fmt;
 pub mod expr;
 pub mod loops;
 pub mod prefix_postfix_inc_dec;
+pub mod tac_func;
 pub mod tac_instr;
 
+use crate::errors::check_funcs::check_funcs;
 use crate::errors::check_vars::check_vars;
+use crate::parser::Function;
 use crate::parser::{expr_parser::Expr, Program, Statement};
 
+use self::tac_func::TacFunc;
 use self::{
     expr::generate_expr_tac,
     loops::{gen_for_loop_tac, gen_while_loop_tac, generate_break_tac, generate_continue_tac},
@@ -94,14 +98,16 @@ pub struct CodeEnv {
     // The two loop labels are used for break and continue statement code
     pub loop_label_end: Option<String>,
     pub loop_label_begin: Option<String>,
+    pub is_main: bool,
 }
 
 impl CodeEnv {
-    fn new() -> Self {
+    fn new(is_main: bool) -> Self {
         CodeEnv {
             var_map_list: Vec::new(),
             loop_label_end: None,
             loop_label_begin: None,
+            is_main,
         }
     }
 }
@@ -125,27 +131,57 @@ fn get_new_label_number() -> usize {
     }
 }
 
-pub fn generate_tac(program: Program) -> Vec<TacInstr> {
-    let mut result = Vec::new();
-
-    assert_eq!(program.function.name, "main");
+pub fn generate_tac(program: Program) -> Vec<TacFunc> {
+    check_funcs(&program);
     check_vars(&program);
 
-    let routine = generate_compound_stmt_tac(&program.function.body, &mut CodeEnv::new());
-    result.extend(routine);
+    let mut tac_funcs = Vec::new();
+
+    for function in program.functions {
+        tac_funcs.push(generate_function_tac(&function));
+    }
+
+    return tac_funcs;
+}
+
+fn generate_function_tac(function: &Function) -> TacFunc {
+    let mut code_env = CodeEnv::new(function.name == "main");
+    let mut this_scopes_variable_map: HashMap<String, Identifier> = HashMap::new();
+    let mut body = Vec::new();
+
+    let mut index: usize = 0;
+    for (arg_name, arg_type) in &function.args {
+        let var_temp_loc = get_new_temp_name(arg_type.to_size());
+        this_scopes_variable_map.insert(arg_name.clone(), var_temp_loc);
+        body.push(TacInstr::LoadArg(var_temp_loc, index));
+        index += 1;
+    }
+    code_env.var_map_list.push(this_scopes_variable_map);
+
+    body.extend(generate_compound_stmt_tac(&function.body, &mut code_env));
 
     // insert return 0 if no return is present
     let mut need_to_insert_return = true;
-    if !result.is_empty() {
-        if let TacInstr::Exit(_) = result.get(result.len() - 1).unwrap() {
+    if !body.is_empty() {
+        if let TacInstr::Exit(_) = body.get(body.len() - 1).unwrap() {
+            need_to_insert_return = false;
+        }
+        if let TacInstr::Return(_) = body.get(body.len() - 1).unwrap() {
             need_to_insert_return = false;
         }
     }
     if need_to_insert_return {
-        result.push(TacInstr::Exit(TacVal::Lit(0, VarSize::default())));
+        if function.name == "main" {
+            body.push(TacInstr::Exit(TacVal::Lit(0, VarSize::default())));
+        } else {
+            body.push(TacInstr::Return(TacVal::Lit(0, VarSize::default())));
+        }
     }
 
-    return result;
+    TacFunc {
+        name: function.name.clone(),
+        body,
+    }
 }
 
 fn generate_compound_stmt_tac(stmts: &Vec<Statement>, code_env: &mut CodeEnv) -> Vec<TacInstr> {
@@ -167,7 +203,11 @@ fn generate_statement_tac(statement: &Statement, code_env: &mut CodeEnv) -> Vec<
     match statement {
         Statement::Return(expr) => {
             let (mut result, expr_val) = generate_expr_tac(expr, code_env, None, None);
-            result.push(TacInstr::Exit(expr_val));
+            if code_env.is_main {
+                result.push(TacInstr::Exit(expr_val));
+            } else {
+                result.push(TacInstr::Return(expr_val));
+            }
             result
         }
         Statement::Declare(var_name, opt_value, t) => {

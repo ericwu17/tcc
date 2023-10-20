@@ -2,7 +2,7 @@
 
 use crate::tac::VarSize;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Reg {
     Rsp,
     Rbp,
