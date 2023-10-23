@@ -1,6 +1,8 @@
 use super::display::err_display_no_source;
 use crate::parser::{expr_parser::Expr, Program, Statement};
 
+const BUILTIN_FUNCTIONS: [&str; 2] = ["putchar", "getchar"];
+
 #[derive(PartialEq, Eq)]
 struct FuncDecl {
     name: String,
@@ -124,13 +126,25 @@ fn check_expr_funcs(expr: &Expr, known_funcs: &Vec<FuncDecl>) {
 
     if let Some(func) = func_to_check {
         if !known_funcs.contains(&func) {
-            if func.name == "putchar" {
-                // putchar is a special function
-                if func.num_args != 1 {
-                    err_display_no_source(format!(
-                        "putchar expects exactly one argument, {} given",
-                        func.num_args
-                    ))
+            if BUILTIN_FUNCTIONS.contains(&func.name.as_str()) {
+                match func.name.as_str() {
+                    "putchar" => {
+                        if func.num_args != 1 {
+                            err_display_no_source(format!(
+                                "putchar expects exactly one argument, {} given",
+                                func.num_args
+                            ))
+                        }
+                    }
+                    "getchar" => {
+                        if func.num_args != 0 {
+                            err_display_no_source(format!(
+                                "putchar expects exactly one argument, {} given",
+                                func.num_args
+                            ))
+                        }
+                    }
+                    _ => {}
                 }
             } else {
                 err_display_no_source(format!("undefined function: {}", &func.name))

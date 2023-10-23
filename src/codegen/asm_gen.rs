@@ -2,7 +2,10 @@ use std::collections::HashSet;
 
 use crate::tac::VarSize;
 
-use super::{putchar::generate_putchar_asm, Location, X86Instr};
+use super::{
+    builtin_functions::{generate_getchar_asm, generate_putchar_asm},
+    Location, X86Instr,
+};
 
 fn convert_location_to_asm(location: &Location, size: VarSize) -> String {
     match location {
@@ -107,6 +110,9 @@ pub fn generate_program_asm(instrs: &Vec<X86Instr>) -> String {
 
     if called_functions.contains(&"putchar".to_owned()) {
         result.push_str(&generate_putchar_asm());
+    }
+    if called_functions.contains(&"getchar".to_owned()) {
+        result.push_str(&generate_getchar_asm());
     }
 
     result

@@ -1,7 +1,7 @@
 pub mod asm_gen;
 pub mod binop;
+pub mod builtin_functions;
 pub mod functions;
-pub mod putchar;
 pub mod reg;
 pub mod unop;
 use std::collections::HashMap;

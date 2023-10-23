@@ -10,12 +10,11 @@ Implemented features include:
 
 - variable declarations and assignments of type `long`, `int`, `short`, and `char`
 - for and while loops, if statements
-- output to stdout using the `putchar()` function
+- stdout and stdin using the `putchar()` and `getchar()` functions
 - function definitions and function calls
 
 Future plans include:
 
-- taking user input using `getchar()`
 - pointers, arrays, and static strings (so that `puts()` may be used instead of repeated `putchar()` calls)
 - C structs
 - `malloc()` and `free()` (I might want to implement these in C code, so this might involve making my own subset of the C standard library)
