@@ -209,14 +209,13 @@ fn generate_function_x86(result: &mut Vec<X86Instr>, function: &TacFunc) {
 fn gen_x86_for_tac(result: &mut Vec<X86Instr>, instr: &TacInstr, reg_alloc: &RegisterAllocator) {
     match instr {
         TacInstr::Exit(val) => {
-            gen_load_val_code(result, val, Reg::Rdi, reg_alloc);
-            // 231 is the syscall number for exit_group
-            result.push(X86Instr::MovImm {
-                dst: Location::Reg(Reg::Rax),
-                imm: 231,
-                size: VarSize::Dword,
-            });
-            result.push(X86Instr::Syscall);
+            generate_function_call_code(
+                result,
+                &"exit".to_owned(),
+                &vec![val.clone()],
+                None,
+                reg_alloc,
+            );
         }
         TacInstr::BinOp(dst_ident, val1, val2, op) => {
             gen_binop_code(result, dst_ident, val1, val2, *op, reg_alloc);

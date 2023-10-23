@@ -12,9 +12,6 @@ pub fn generate_function_call_code(
     optional_ident: Option<Identifier>,
     reg_alloc: &RegisterAllocator,
 ) {
-    assert!(optional_ident.is_some());
-    let function_return_val_ident = optional_ident.unwrap();
-
     // we reverse the order of args in order to store things to memory first.
     // this way if the arguments past the 6th arg require using any of the 6 registers used
     // for the first 6 arguments, conflicts may be avoided.
@@ -33,11 +30,13 @@ pub fn generate_function_call_code(
         name: function_name.clone(),
     });
 
-    result.push(X86Instr::Mov {
-        dst: reg_alloc.get_location(function_return_val_ident),
-        src: Location::Reg(Reg::Rax),
-        size: function_return_val_ident.get_size(),
-    });
+    if let Some(function_return_val_ident) = optional_ident {
+        result.push(X86Instr::Mov {
+            dst: reg_alloc.get_location(function_return_val_ident),
+            src: Location::Reg(Reg::Rax),
+            size: function_return_val_ident.get_size(),
+        });
+    }
 }
 
 pub fn gen_load_arg_code(

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use crate::tac::VarSize;
 
 use super::{
-    builtin_functions::{generate_getchar_asm, generate_putchar_asm},
+    builtin_functions::{generate_exit_asm, generate_getchar_asm, generate_putchar_asm},
     Location, X86Instr,
 };
 
@@ -114,6 +114,7 @@ pub fn generate_program_asm(instrs: &Vec<X86Instr>) -> String {
     if called_functions.contains(&"getchar".to_owned()) {
         result.push_str(&generate_getchar_asm());
     }
+    result.push_str(&generate_exit_asm());
 
     result
 }

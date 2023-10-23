@@ -1,7 +1,7 @@
 use super::display::err_display_no_source;
 use crate::parser::{expr_parser::Expr, Program, Statement};
 
-const BUILTIN_FUNCTIONS: [&str; 2] = ["putchar", "getchar"];
+const BUILTIN_FUNCTIONS: [&str; 3] = ["putchar", "getchar", "exit"];
 
 #[derive(PartialEq, Eq)]
 struct FuncDecl {
@@ -139,7 +139,15 @@ fn check_expr_funcs(expr: &Expr, known_funcs: &Vec<FuncDecl>) {
                     "getchar" => {
                         if func.num_args != 0 {
                             err_display_no_source(format!(
-                                "putchar expects exactly one argument, {} given",
+                                "getchar expects exactly one argument, {} given",
+                                func.num_args
+                            ))
+                        }
+                    }
+                    "exit" => {
+                        if func.num_args != 1 {
+                            err_display_no_source(format!(
+                                "exit expects exactly one argument, {} given",
                                 func.num_args
                             ))
                         }

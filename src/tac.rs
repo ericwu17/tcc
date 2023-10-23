@@ -68,6 +68,7 @@ impl Identifier {
     }
 }
 
+#[derive(Clone)]
 pub enum TacVal {
     Lit(i32, VarSize),
     Var(Identifier),
