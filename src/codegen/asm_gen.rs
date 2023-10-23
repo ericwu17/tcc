@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::tac::VarSize;
+use crate::types::VarSize;
 
 use super::{
     builtin_functions::{generate_exit_asm, generate_getchar_asm, generate_putchar_asm},

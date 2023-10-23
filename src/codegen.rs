@@ -6,7 +6,10 @@ pub mod reg;
 pub mod unop;
 use std::collections::HashMap;
 
-use crate::tac::{tac_func::TacFunc, tac_instr::TacInstr, Identifier, TacVal, VarSize};
+use crate::{
+    tac::{tac_func::TacFunc, tac_instr::TacInstr, Identifier, TacVal},
+    types::VarSize,
+};
 
 use self::{
     binop::gen_binop_code,

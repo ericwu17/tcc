@@ -3,6 +3,7 @@ mod errors;
 mod parser;
 mod tac;
 mod tokenizer;
+mod types;
 
 use std::fs::File;
 use std::io::Read;

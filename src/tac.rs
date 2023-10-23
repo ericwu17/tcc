@@ -10,6 +10,7 @@ use crate::errors::check_funcs::check_funcs;
 use crate::errors::check_vars::check_vars;
 use crate::parser::Function;
 use crate::parser::{expr_parser::Expr, Program, Statement};
+use crate::types::VarSize;
 
 use self::tac_func::TacFunc;
 use self::{
@@ -17,31 +18,6 @@ use self::{
     loops::{gen_for_loop_tac, gen_while_loop_tac, generate_break_tac, generate_continue_tac},
     tac_instr::TacInstr,
 };
-
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
-pub enum VarSize {
-    Byte,
-    Word,
-    Dword,
-    Quad,
-}
-
-impl Default for VarSize {
-    fn default() -> Self {
-        VarSize::Dword
-    }
-}
-
-impl VarSize {
-    fn to_letter(&self) -> char {
-        match self {
-            VarSize::Byte => 'b',
-            VarSize::Word => 'w',
-            VarSize::Dword => 'd',
-            VarSize::Quad => 'q',
-        }
-    }
-}
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct Identifier(usize, VarSize); // an identifier for a temporary in TAC
@@ -152,7 +128,8 @@ fn generate_function_tac(function: &Function) -> TacFunc {
 
     let mut index: usize = 0;
     for (arg_name, arg_type) in &function.args {
-        let var_temp_loc = get_new_temp_name(arg_type.to_size());
+        // TODO: handle this unwrap (also in many other places)
+        let var_temp_loc = get_new_temp_name(arg_type.to_size().unwrap());
         this_scopes_variable_map.insert(arg_name.clone(), var_temp_loc);
         body.push(TacInstr::LoadArg(var_temp_loc, index));
         index += 1;
@@ -227,12 +204,16 @@ fn generate_statement_tac(statement: &Statement, code_env: &mut CodeEnv) -> Vec<
                     var_name
                 );
             }
-            let var_temp_loc = get_new_temp_name(t.to_size());
+            let var_temp_loc = get_new_temp_name(t.to_size().unwrap());
 
             match opt_value {
                 Some(expr) => {
-                    let (result, _) =
-                        generate_expr_tac(expr, code_env, Some(var_temp_loc), Some(t.to_size()));
+                    let (result, _) = generate_expr_tac(
+                        expr,
+                        code_env,
+                        Some(var_temp_loc),
+                        Some(t.to_size().unwrap()),
+                    );
 
                     let var_map_list = &mut code_env.var_map_list;
                     let last_elem_index = var_map_list.len() - 1;

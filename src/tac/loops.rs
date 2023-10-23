@@ -75,7 +75,7 @@ pub fn gen_for_loop_tac(
     let mut header_var_map: HashMap<String, Identifier> = HashMap::new();
     match initial_expr {
         Statement::Declare(var_name, optional_expr, t) => {
-            let var_temp_loc = get_new_temp_name(t.to_size());
+            let var_temp_loc = get_new_temp_name(t.to_size().unwrap());
             header_var_map.insert(var_name.clone(), var_temp_loc);
             if let Some(expr) = optional_expr {
                 let (instrs, _) = generate_expr_tac(expr, code_env, Some(var_temp_loc), None);

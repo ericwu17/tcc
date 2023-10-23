@@ -4,9 +4,8 @@ pub mod source_cursor;
 use self::source_cursor::{SourceCodeCursor, SourcePtr};
 use crate::errors::display::err_display;
 use crate::parser::expr_parser::{BinOp, BinOpPrecedenceLevel, UnOp};
-use crate::tac::VarSize;
+use crate::types::FundT;
 use operator::{char_to_operator, chars_to_operator, Op};
-use std::fmt;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token {
@@ -14,10 +13,14 @@ pub enum Token {
     CloseParen,
     OpenBrace,
     CloseBrace,
+    OpenBracket,
+    CloseBracket,
+    Star,
+    Ampersand,
     IntLit { val: String },
     Identifier { val: String },
     Return,
-    Type(VarType),
+    Type(FundT),
     Semicolon,
     Comma,
     AssignmentEquals,
@@ -30,36 +33,7 @@ pub enum Token {
     For,
     Break,
     Continue,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum VarType {
-    Char,
-    Short,
-    Int,
-    Long,
-}
-
-impl fmt::Display for VarType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            VarType::Char => write!(f, "char"),
-            VarType::Short => write!(f, "short"),
-            VarType::Int => write!(f, "int"),
-            VarType::Long => write!(f, "long"),
-        }
-    }
-}
-
-impl VarType {
-    pub fn to_size(&self) -> VarSize {
-        match self {
-            VarType::Char => VarSize::Byte,
-            VarType::Short => VarSize::Word,
-            VarType::Int => VarSize::Dword,
-            VarType::Long => VarSize::Quad,
-        }
-    }
+    Sizeof,
 }
 
 impl Token {
@@ -67,7 +41,7 @@ impl Token {
         match level {
             BinOpPrecedenceLevel::MulDiv => match self {
                 Token::Op(Op::Slash) => Some(BinOp::Divide),
-                Token::Op(Op::Star) => Some(BinOp::Multiply),
+                Token::Star => Some(BinOp::Multiply),
                 Token::Op(Op::Percent) => Some(BinOp::Modulus),
                 _ => None,
             },
@@ -133,6 +107,12 @@ pub fn get_tokens(source_code_contents: String) -> Vec<(Token, SourcePtr)> {
         } else if next_char == ')' {
             cursor.next();
             tokens.push((Token::CloseParen, cursor.get_last_pos()));
+        } else if next_char == '[' {
+            cursor.next();
+            tokens.push((Token::OpenBracket, cursor.get_last_pos()));
+        } else if next_char == ']' {
+            cursor.next();
+            tokens.push((Token::CloseBracket, cursor.get_last_pos()));
         } else if next_char == ';' {
             cursor.next();
             tokens.push((Token::Semicolon, cursor.get_last_pos()));
@@ -154,6 +134,12 @@ pub fn get_tokens(source_code_contents: String) -> Vec<(Token, SourcePtr)> {
         } else if next_char == '=' {
             cursor.next();
             tokens.push((Token::AssignmentEquals, cursor.get_last_pos()));
+        } else if next_char == '&' {
+            cursor.next();
+            tokens.push((Token::Ampersand, cursor.get_last_pos()));
+        } else if next_char == '*' {
+            cursor.next();
+            tokens.push((Token::Star, cursor.get_last_pos()));
         } else if let Some(op) = char_to_operator(next_char) {
             cursor.next();
             tokens.push((Token::Op(op), cursor.get_last_pos()));
@@ -183,16 +169,17 @@ pub fn get_tokens(source_code_contents: String) -> Vec<(Token, SourcePtr)> {
 
             match val.as_str() {
                 "return" => tokens.push((Token::Return, pos)),
-                "int" => tokens.push((Token::Type(VarType::Int), pos)),
-                "long" => tokens.push((Token::Type(VarType::Long), pos)),
-                "short" => tokens.push((Token::Type(VarType::Short), pos)),
-                "char" => tokens.push((Token::Type(VarType::Char), pos)),
+                "int" => tokens.push((Token::Type(FundT::Int), pos)),
+                "long" => tokens.push((Token::Type(FundT::Long), pos)),
+                "short" => tokens.push((Token::Type(FundT::Short), pos)),
+                "char" => tokens.push((Token::Type(FundT::Char), pos)),
                 "if" => tokens.push((Token::If, pos)),
                 "else" => tokens.push((Token::Else, pos)),
                 "while" => tokens.push((Token::While, pos)),
                 "break" => tokens.push((Token::Break, pos)),
                 "continue" => tokens.push((Token::Continue, pos)),
                 "for" => tokens.push((Token::For, pos)),
+                "sizeof" => tokens.push((Token::Sizeof, pos)),
                 _ => tokens.push((Token::Identifier { val }, pos)),
             }
         } else if next_char == '\'' {

@@ -1,6 +1,7 @@
 use crate::{
     parser::expr_parser::BinOp,
-    tac::{expr::get_bigger_size, Identifier, TacVal, VarSize},
+    tac::{expr::get_bigger_size, Identifier, TacVal},
+    types::VarSize,
 };
 
 use super::{gen_load_val_code, CCode, Location, Reg, RegisterAllocator, X86Instr};

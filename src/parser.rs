@@ -5,7 +5,8 @@ pub mod token_cursor;
 use crate::errors::display::err_display;
 use crate::parser::{expr_parser::generate_expr_ast, token_cursor::TokenCursor};
 use crate::tokenizer::source_cursor::SourcePtr;
-use crate::tokenizer::{Token, VarType};
+use crate::tokenizer::Token;
+use crate::types::VarType;
 use expr_parser::{BinOpPrecedenceLevel, Expr};
 use for_loop_parser::generate_for_loop_ast;
 
@@ -97,6 +98,7 @@ fn generate_function_ast(tokens: &mut TokenCursor) -> Function {
 }
 
 fn parse_function_arg_decl(tokens: &mut TokenCursor) -> Vec<(String, VarType)> {
+    // TODO: support functions arguments of type pointer to something.
     let mut args = Vec::new();
 
     if tokens.peek() == Some(&Token::CloseParen) {
@@ -106,7 +108,7 @@ fn parse_function_arg_decl(tokens: &mut TokenCursor) -> Vec<(String, VarType)> {
         let arg_type;
         let arg_name;
         if let Some(Token::Type(t)) = tokens.next() {
-            arg_type = *t;
+            arg_type = VarType::Fund(*t);
         } else {
             err_display(
                 format!(
@@ -181,7 +183,7 @@ fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
             stmt = Statement::Return(expr);
         }
         Some(Token::Type(t)) => {
-            let t = t.clone();
+            let t = VarType::Fund(t.clone());
             tokens.next(); // consume the type keyword
             let decl_identifier;
             let mut optional_expr = None;

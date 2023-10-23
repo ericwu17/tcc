@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::tac::VarSize;
+use crate::types::VarSize;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Reg {

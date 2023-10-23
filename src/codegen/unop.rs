@@ -1,6 +1,7 @@
 use crate::{
     parser::expr_parser::UnOp,
-    tac::{Identifier, TacVal, VarSize},
+    tac::{Identifier, TacVal},
+    types::VarSize,
 };
 
 use super::{gen_load_val_code, CCode, Location, Reg, RegisterAllocator, X86Instr};

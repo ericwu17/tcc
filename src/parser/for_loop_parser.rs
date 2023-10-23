@@ -2,6 +2,7 @@ use crate::errors::display::err_display;
 use crate::parser::expr_parser::{generate_expr_ast, BinOpPrecedenceLevel};
 use crate::parser::{generate_statement_ast, Statement, TokenCursor};
 use crate::tokenizer::Token;
+use crate::types::VarType;
 
 pub fn generate_for_loop_ast(tokens: &mut TokenCursor) -> Statement {
     assert_eq!(tokens.next(), Some(&Token::For)); // should be true because this function is only called when we need to parse a for loop (caller should have peeked)
@@ -93,7 +94,7 @@ pub fn generate_for_loop_ast(tokens: &mut TokenCursor) -> Statement {
 fn generate_for_loop_decl_expr(tokens: &mut TokenCursor) -> Statement {
     let t;
     match tokens.next() {
-        Some(Token::Type(inner_t)) => t = *inner_t,
+        Some(Token::Type(inner_t)) => t = VarType::Fund(*inner_t),
         _ => err_display(
             format!(
                 "expected variable type in declaration, found {:?}",
