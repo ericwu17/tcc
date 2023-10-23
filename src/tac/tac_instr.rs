@@ -5,7 +5,6 @@ use crate::parser::expr_parser::{BinOp, UnOp};
 use super::{Identifier, TacVal};
 
 pub enum TacInstr {
-    Exit(TacVal),
     Return(TacVal),
     BinOp(Identifier, TacVal, TacVal, BinOp),
     UnOp(Identifier, TacVal, UnOp),
@@ -33,7 +32,6 @@ impl TacInstr {
             }
             TacInstr::Label(..)
             | TacInstr::Jmp(..)
-            | TacInstr::Exit(..)
             | TacInstr::JmpNotZero(..)
             | TacInstr::JmpZero(..)
             | TacInstr::Return(_) => {}
@@ -48,11 +46,6 @@ impl TacInstr {
     pub fn get_read_identifiers(&self) -> Vec<Identifier> {
         let mut result = Vec::new();
         match self {
-            TacInstr::Exit(v) => {
-                if let TacVal::Var(ident) = v {
-                    result.push(*ident);
-                }
-            }
             TacInstr::BinOp(_, v1, v2, _) => {
                 if let TacVal::Var(ident) = v1 {
                     result.push(*ident);
@@ -122,9 +115,6 @@ impl fmt::Debug for TacInstr {
             }
             TacInstr::JmpNotZero(label, v) => {
                 write!(f, "jnz {} {:?}", label, v)
-            }
-            TacInstr::Exit(v) => {
-                write!(f, "exit {:?}", v)
             }
             TacInstr::Call(name, args, optional_ident) => match optional_ident {
                 None => write!(f, "call {}({:?})", name, args),

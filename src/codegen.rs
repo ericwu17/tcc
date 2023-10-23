@@ -156,7 +156,6 @@ pub enum X86Instr {
         reg: Reg,
         size: VarSize,
     },
-    Syscall,
     Ret,
     StartLabel,
 }
@@ -208,15 +207,6 @@ fn generate_function_x86(result: &mut Vec<X86Instr>, function: &TacFunc) {
 
 fn gen_x86_for_tac(result: &mut Vec<X86Instr>, instr: &TacInstr, reg_alloc: &RegisterAllocator) {
     match instr {
-        TacInstr::Exit(val) => {
-            generate_function_call_code(
-                result,
-                &"exit".to_owned(),
-                &vec![val.clone()],
-                None,
-                reg_alloc,
-            );
-        }
         TacInstr::BinOp(dst_ident, val1, val2, op) => {
             gen_binop_code(result, dst_ident, val1, val2, *op, reg_alloc);
         }

@@ -161,11 +161,13 @@ fn generate_function_tac(function: &Function) -> TacFunc {
 
     body.extend(generate_compound_stmt_tac(&function.body, &mut code_env));
 
-    // insert return 0 if no return is present
+    // insert return 0 if no return is present (or exit function call in main function)
     let mut need_to_insert_return = true;
     if !body.is_empty() {
-        if let TacInstr::Exit(_) = body.get(body.len() - 1).unwrap() {
-            need_to_insert_return = false;
+        if let TacInstr::Call(func_name, _, _) = body.get(body.len() - 1).unwrap() {
+            if func_name == &"exit".to_owned() {
+                need_to_insert_return = false;
+            }
         }
         if let TacInstr::Return(_) = body.get(body.len() - 1).unwrap() {
             need_to_insert_return = false;
@@ -173,7 +175,11 @@ fn generate_function_tac(function: &Function) -> TacFunc {
     }
     if need_to_insert_return {
         if function.name == "main" {
-            body.push(TacInstr::Exit(TacVal::Lit(0, VarSize::default())));
+            body.push(TacInstr::Call(
+                "exit".to_owned(),
+                vec![TacVal::Lit(0, VarSize::Quad)],
+                None,
+            ))
         } else {
             body.push(TacInstr::Return(TacVal::Lit(0, VarSize::default())));
         }
@@ -205,7 +211,7 @@ fn generate_statement_tac(statement: &Statement, code_env: &mut CodeEnv) -> Vec<
         Statement::Return(expr) => {
             let (mut result, expr_val) = generate_expr_tac(expr, code_env, None, None);
             if code_env.is_main {
-                result.push(TacInstr::Exit(expr_val));
+                result.push(TacInstr::Call("exit".to_owned(), vec![expr_val], None));
             } else {
                 result.push(TacInstr::Return(expr_val));
             }

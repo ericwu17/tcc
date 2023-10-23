@@ -74,7 +74,6 @@ pub fn convert_to_asm(instr: &X86Instr) -> String {
         ),
         X86Instr::Not { dst, size } => format!("not {}", dst.get_sized_name(*size),),
         X86Instr::Neg { dst, size } => format!("neg {}", dst.get_sized_name(*size),),
-        X86Instr::Syscall => "syscall".to_owned(),
         X86Instr::Call { name } => format!("call .{}", name),
         X86Instr::SignExtend { reg, size } => format!(
             "movsx {}, {}",
