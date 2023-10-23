@@ -18,15 +18,17 @@ pub fn generate_putchar_asm() -> String {
 pub fn generate_getchar_asm() -> String {
     let result = "
 .getchar:
-  sub rsp, 1
-  mov rsi, rsp
+  sub rsp, 4
+  mov rsi, rsp ; a ptr to 'buf'
   mov rdi, 0   ; stdin
-  mov rdx, 1   ; 1 byte
+  mov rdx, 1   ; 1 byte to read
   mov rax, 0   ; syscall #0 for 'read'
   syscall
-  xor rax, rax
-  mov al, [rsp]
-  add rsp, 1
+  test rax, rax          ; check for EOF (rax contains bytes written, returned by syscall)
+  mov eax, [rsp]
+  mov r10d, -1
+  cmovz eax, r10d  ; if at EOF, write -1 to memory.
+  add rsp, 4
   ret
 ";
 
