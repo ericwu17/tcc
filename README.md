@@ -18,6 +18,7 @@ Future plans include:
 - pointers, arrays, and static strings (so that `puts()` may be used instead of repeated `putchar()` calls)
 - C structs
 - `malloc()` and `free()` (I might want to implement these in C code, so this might involve making my own subset of the C standard library)
+- floats and doubles!
 - more efficient code using techniques such as register allocation, dead code elimination, loop optimizations...
 
 The asm output is generated in the file `out.asm` which is ignored by git.
