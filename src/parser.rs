@@ -1,6 +1,7 @@
 pub mod expr_parser;
 pub mod for_loop_parser;
 pub mod token_cursor;
+pub mod types_parser;
 
 use crate::errors::display::err_display;
 use crate::parser::{expr_parser::generate_expr_ast, token_cursor::TokenCursor};
@@ -9,6 +10,8 @@ use crate::tokenizer::Token;
 use crate::types::VarType;
 use expr_parser::{BinOpPrecedenceLevel, Expr};
 use for_loop_parser::generate_for_loop_ast;
+
+use self::types_parser::parse_variable_declaration;
 
 #[derive(Debug)]
 pub struct Program {
@@ -182,28 +185,8 @@ fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
             expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
             stmt = Statement::Return(expr);
         }
-        Some(Token::Type(t)) => {
-            let t = VarType::Fund(t.clone());
-            tokens.next(); // consume the type keyword
-            let decl_identifier;
-            let mut optional_expr = None;
-            if let Some(Token::Identifier { val }) = tokens.next() {
-                decl_identifier = val.clone();
-            } else {
-                err_display(
-                    format!("must have identifier after declaration of type {}", t),
-                    tokens.get_last_ptr(),
-                );
-            }
-
-            if tokens.peek() == Some(&Token::AssignmentEquals) {
-                tokens.next();
-                optional_expr = Some(generate_expr_ast(
-                    tokens,
-                    BinOpPrecedenceLevel::lowest_level(),
-                ))
-            }
-            stmt = Statement::Declare(decl_identifier, optional_expr, t);
+        Some(Token::Type(_)) => {
+            stmt = parse_variable_declaration(tokens);
         }
         Some(Token::OpenBrace) => {
             let compound_stmt = generate_compound_stmt_ast(tokens);

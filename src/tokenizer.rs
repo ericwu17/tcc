@@ -7,7 +7,7 @@ use crate::parser::expr_parser::{BinOp, BinOpPrecedenceLevel, UnOp};
 use crate::types::FundT;
 use operator::{char_to_operator, chars_to_operator, Op};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {
     OpenParen,
     CloseParen,
