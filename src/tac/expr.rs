@@ -9,21 +9,29 @@ use super::{
     resolve_variable_to_temp_name, CodeEnv, Identifier, TacInstr, TacVal, VarSize,
 };
 
+#[derive(PartialEq, Clone, Copy)]
+pub enum ValTarget {
+    None,              // evaluate the expression only for side effects
+    Generate,          // generate one if required, but return TacVal (which might be a literal)
+    Ident(Identifier), // write the value of the expression into this identifier
+}
+
 pub fn generate_expr_tac(
     expr: &Expr,
     code_env: &CodeEnv,
-    target_temp_name: Option<Identifier>,
+    target: ValTarget,
     suggested_size: Option<VarSize>,
 ) -> (Vec<TacInstr>, TacVal) {
     // returns a list of instructions to calculate an expression,
     // and the tacval (may be a var or an literal) containing the expression.
 
-    // if target_temp_name is None, then this function will allocate a new temporary if required.
-    // otherwise, it will store the result in target_temp_name.
+    // if the caller supplies ValTarget::None for target, then the caller
+    // should also ignore the TacVal returned, since the caller is evaluating the expr for side
+    // effects only anyway
 
     match expr {
         Expr::Var(var_name) => {
-            if let Some(target_temp_name) = target_temp_name {
+            if let ValTarget::Ident(target_temp_name) = target {
                 return (
                     vec![TacInstr::Copy(
                         target_temp_name,
@@ -37,62 +45,61 @@ pub fn generate_expr_tac(
                 TacVal::Var(resolve_variable_to_temp_name(var_name, code_env)),
             );
         }
-        Expr::Int(v) => {
-            if let Some(ident) = target_temp_name {
-                (
-                    vec![TacInstr::Copy(ident, TacVal::Lit(*v, ident.1))],
-                    TacVal::Var(ident),
-                )
-            } else {
+        Expr::Int(v) => match target {
+            ValTarget::Generate | ValTarget::None => {
                 (vec![], TacVal::Lit(*v, suggested_size.unwrap_or_default()))
             }
+            ValTarget::Ident(ident) => (
+                vec![TacInstr::Copy(ident, TacVal::Lit(*v, ident.1))],
+                TacVal::Var(ident),
+            ),
+        },
+        Expr::UnOp(op, inner_expr) => match target {
+            ValTarget::Generate | ValTarget::Ident(_) => {
+                let final_temp_name = if let ValTarget::Ident(ident) = target {
+                    ident
+                } else {
+                    get_new_temp_name(
+                        get_expr_size(inner_expr, code_env)
+                            .unwrap_or(suggested_size.unwrap_or_default()),
+                    )
+                };
+                let (mut result, inner_val) =
+                    generate_expr_tac(inner_expr, code_env, ValTarget::Generate, suggested_size);
+                result.push(TacInstr::UnOp(final_temp_name, inner_val, *op));
+                (result, TacVal::Var(final_temp_name))
+            }
+            ValTarget::None => {
+                generate_expr_tac(inner_expr, code_env, ValTarget::None, suggested_size)
+            }
+        },
+        Expr::BinOp(op, expr1, expr2) => {
+            generate_binop_tac(*op, expr1, expr2, code_env, target, suggested_size)
         }
-        Expr::UnOp(op, inner_expr) => {
-            let final_temp_name = if let Some(ident) = target_temp_name {
-                ident
-            } else {
-                get_new_temp_name(
-                    get_expr_size(inner_expr, code_env)
-                        .unwrap_or(suggested_size.unwrap_or_default()),
-                )
-            };
-            let (mut result, inner_val) =
-                generate_expr_tac(inner_expr, code_env, None, suggested_size);
-            result.push(TacInstr::UnOp(final_temp_name, inner_val, *op));
-            (result, TacVal::Var(final_temp_name))
-        }
-        Expr::BinOp(op, expr1, expr2) => generate_binop_tac(
-            *op,
-            expr1,
-            expr2,
-            code_env,
-            target_temp_name,
-            suggested_size,
-        ),
         Expr::Ternary(decision_expr, expr1, expr2) => generate_ternary_tac(
             decision_expr,
             expr1,
             expr2,
             code_env,
-            target_temp_name,
+            target,
             suggested_size,
         ),
 
         Expr::PostfixInc(var) => {
-            gen_prefix_postfix_inc_dec(var, Operation::PostfixInc, code_env, target_temp_name)
+            gen_prefix_postfix_inc_dec(var, Operation::PostfixInc, code_env, target)
         }
         Expr::PostfixDec(var) => {
-            gen_prefix_postfix_inc_dec(var, Operation::PostfixDec, code_env, target_temp_name)
+            gen_prefix_postfix_inc_dec(var, Operation::PostfixDec, code_env, target)
         }
         Expr::PrefixInc(var) => {
-            gen_prefix_postfix_inc_dec(var, Operation::PrefixInc, code_env, target_temp_name)
+            gen_prefix_postfix_inc_dec(var, Operation::PrefixInc, code_env, target)
         }
         Expr::PrefixDec(var) => {
-            gen_prefix_postfix_inc_dec(var, Operation::PrefixDec, code_env, target_temp_name)
+            gen_prefix_postfix_inc_dec(var, Operation::PrefixDec, code_env, target)
         }
 
         Expr::FunctionCall(func_ident, args) => {
-            gen_function_call_tac(func_ident, args, code_env, target_temp_name)
+            gen_function_call_tac(func_ident, args, code_env, target)
         }
         Expr::Deref(_) => todo!(),
         Expr::Ref(_) => todo!(),
@@ -105,41 +112,47 @@ fn generate_binop_tac(
     expr1: &Expr,
     expr2: &Expr,
     code_env: &CodeEnv,
-    target_temp_name: Option<Identifier>,
+    target: ValTarget,
     suggested_size: Option<VarSize>,
 ) -> (Vec<TacInstr>, TacVal) {
     if op == BinOp::LogicalAnd || op == BinOp::LogicalOr {
-        return generate_short_circuiting_tac(
-            op,
-            expr1,
-            expr2,
-            code_env,
-            target_temp_name,
-            suggested_size,
-        );
+        return generate_short_circuiting_tac(op, expr1, expr2, code_env, target, suggested_size);
     }
 
     if op == BinOp::Assign {
-        return generate_assignment_tac(expr1, expr2, code_env, target_temp_name);
+        return generate_assignment_tac(expr1, expr2, code_env, target);
     }
+    match target {
+        ValTarget::Generate | ValTarget::Ident(_) => {
+            let final_temp_name = if let ValTarget::Ident(ident) = target {
+                ident
+            } else {
+                get_new_temp_name(
+                    get_bigger_size(
+                        get_expr_size(expr1, code_env),
+                        get_expr_size(expr2, code_env),
+                    )
+                    .unwrap_or(suggested_size.unwrap_or_default()),
+                )
+            };
+            let (mut result, expr_1_val) =
+                generate_expr_tac(expr1, code_env, ValTarget::Generate, suggested_size);
+            let (result2, expr_2_val) =
+                generate_expr_tac(expr2, code_env, ValTarget::Generate, suggested_size);
 
-    let final_temp_name: Identifier = if let Some(ident) = target_temp_name {
-        ident
-    } else {
-        get_new_temp_name(
-            get_bigger_size(
-                get_expr_size(expr1, code_env),
-                get_expr_size(expr2, code_env),
-            )
-            .unwrap_or(suggested_size.unwrap_or_default()),
-        )
-    };
-    let (mut result, expr_1_val) = generate_expr_tac(expr1, code_env, None, suggested_size);
-    let (result2, expr_2_val) = generate_expr_tac(expr2, code_env, None, suggested_size);
-
-    result.extend(result2);
-    result.push(TacInstr::BinOp(final_temp_name, expr_1_val, expr_2_val, op));
-    (result, TacVal::Var(final_temp_name))
+            result.extend(result2);
+            result.push(TacInstr::BinOp(final_temp_name, expr_1_val, expr_2_val, op));
+            (result, TacVal::Var(final_temp_name))
+        }
+        ValTarget::None => {
+            let (mut result, _) =
+                generate_expr_tac(expr1, code_env, ValTarget::None, suggested_size);
+            let (result2, val) =
+                generate_expr_tac(expr2, code_env, ValTarget::None, suggested_size);
+            result.extend(result2);
+            (result, val)
+        }
+    }
 }
 
 fn generate_short_circuiting_tac(
@@ -147,10 +160,10 @@ fn generate_short_circuiting_tac(
     expr1: &Expr,
     expr2: &Expr,
     code_env: &CodeEnv,
-    target_temp_name: Option<Identifier>,
+    target: ValTarget,
     suggested_size: Option<VarSize>,
 ) -> (Vec<TacInstr>, TacVal) {
-    let final_temp_name = if let Some(ident) = target_temp_name {
+    let final_temp_name = if let ValTarget::Ident(ident) = target {
         ident
     } else {
         get_new_temp_name(
@@ -161,15 +174,17 @@ fn generate_short_circuiting_tac(
             .unwrap_or(suggested_size.unwrap_or_default()),
         )
     };
+
     match op {
         BinOp::LogicalAnd => {
             let label_num = get_new_label_number();
             let label_and_false = format!("label_and_false_{}", label_num);
             let label_and_end = format!("label_and_end_{}", label_num);
 
-            let (mut result, lhs_val) = generate_expr_tac(expr1, code_env, None, None);
+            let (mut result, lhs_val) =
+                generate_expr_tac(expr1, code_env, ValTarget::Generate, None);
             result.push(TacInstr::JmpZero(label_and_false.clone(), lhs_val));
-            let (res_rhs, rhs_val) = generate_expr_tac(expr2, code_env, None, None);
+            let (res_rhs, rhs_val) = generate_expr_tac(expr2, code_env, ValTarget::Generate, None);
             result.extend(res_rhs);
             result.push(TacInstr::BinOp(
                 final_temp_name,
@@ -192,9 +207,10 @@ fn generate_short_circuiting_tac(
             let label_or_true = format!("label_or_true_{}", label_num);
             let label_or_end = format!("label_or_end_{}", label_num);
 
-            let (mut result, lhs_val) = generate_expr_tac(expr1, code_env, None, None);
+            let (mut result, lhs_val) =
+                generate_expr_tac(expr1, code_env, ValTarget::Generate, None);
             result.push(TacInstr::JmpNotZero(label_or_true.clone(), lhs_val));
-            let (res_rhs, rhs_val) = generate_expr_tac(expr2, code_env, None, None);
+            let (res_rhs, rhs_val) = generate_expr_tac(expr2, code_env, ValTarget::Generate, None);
             result.extend(res_rhs);
             result.push(TacInstr::BinOp(
                 final_temp_name,
@@ -220,7 +236,7 @@ fn generate_assignment_tac(
     lhs: &Expr,
     rhs: &Expr,
     code_env: &CodeEnv,
-    target_temp_name: Option<Identifier>,
+    target: ValTarget,
 ) -> (Vec<TacInstr>, TacVal) {
     match lhs {
         Expr::Var(var_name) => {
@@ -229,10 +245,10 @@ fn generate_assignment_tac(
             let (mut result, tac_val) = generate_expr_tac(
                 rhs,
                 code_env,
-                Some(temp_name_of_assignee),
+                ValTarget::Ident(temp_name_of_assignee),
                 Some(temp_name_of_assignee.1),
             );
-            if let Some(ident) = target_temp_name {
+            if let ValTarget::Ident(ident) = target {
                 result.push(TacInstr::Copy(ident, tac_val));
                 (result, TacVal::Var(ident))
             } else {
@@ -248,10 +264,10 @@ fn generate_ternary_tac(
     expr1: &Expr,
     expr2: &Expr,
     code_env: &CodeEnv,
-    target_temp_name: Option<Identifier>,
+    target: ValTarget,
     suggested_size: Option<VarSize>,
 ) -> (Vec<TacInstr>, TacVal) {
-    let final_temp_name = if let Some(ident) = target_temp_name {
+    let final_temp_name = if let ValTarget::Ident(ident) = target {
         ident
     } else {
         get_new_temp_name(
@@ -267,13 +283,14 @@ fn generate_ternary_tac(
     let label_false = format!("label_ternary_false_{}", label_num);
     let label_end = format!("label_ternary_end_{}", label_num);
 
-    let (mut result, decision_val) = generate_expr_tac(decision_expr, code_env, None, None);
+    let (mut result, decision_val) =
+        generate_expr_tac(decision_expr, code_env, ValTarget::Generate, None);
     result.push(TacInstr::JmpZero(label_false.clone(), decision_val));
 
     let (res_expr1, _) = generate_expr_tac(
         expr1,
         code_env,
-        Some(final_temp_name),
+        ValTarget::Ident(final_temp_name),
         Some(final_temp_name.1),
     );
     result.extend(res_expr1);
@@ -283,7 +300,7 @@ fn generate_ternary_tac(
     let (res_expr2, _) = generate_expr_tac(
         expr2,
         code_env,
-        Some(final_temp_name),
+        ValTarget::Ident(final_temp_name),
         Some(final_temp_name.1),
     );
     result.extend(res_expr2);
@@ -296,9 +313,9 @@ pub fn gen_function_call_tac(
     func_ident: &String,
     args: &Vec<Expr>,
     code_env: &CodeEnv,
-    target_temp_name: Option<Identifier>,
+    target: ValTarget,
 ) -> (Vec<TacInstr>, TacVal) {
-    let final_temp_name = if let Some(ident) = target_temp_name {
+    let final_temp_name = if let ValTarget::Ident(ident) = target {
         ident
     } else {
         get_new_temp_name(VarSize::default())
@@ -308,7 +325,7 @@ pub fn gen_function_call_tac(
     let mut arg_vals = Vec::new();
 
     for arg_expr in args {
-        let (instrs, arg_val) = generate_expr_tac(arg_expr, code_env, None, None);
+        let (instrs, arg_val) = generate_expr_tac(arg_expr, code_env, ValTarget::Generate, None);
         result.extend(instrs);
         arg_vals.push(arg_val);
     }

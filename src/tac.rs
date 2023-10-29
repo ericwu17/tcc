@@ -13,6 +13,7 @@ use crate::parser::Function;
 use crate::parser::{expr_parser::Expr, Program, Statement};
 use crate::types::VarSize;
 
+use self::expr::ValTarget;
 use self::tac_func::TacFunc;
 use self::{
     expr::generate_expr_tac,
@@ -190,7 +191,8 @@ fn generate_compound_stmt_tac(stmts: &Vec<Statement>, code_env: &mut CodeEnv) ->
 fn generate_statement_tac(statement: &Statement, code_env: &mut CodeEnv) -> Vec<TacInstr> {
     match statement {
         Statement::Return(expr) => {
-            let (mut result, expr_val) = generate_expr_tac(expr, code_env, None, None);
+            let (mut result, expr_val) =
+                generate_expr_tac(expr, code_env, ValTarget::Generate, None);
             if code_env.is_main {
                 result.push(TacInstr::Call("exit".to_owned(), vec![expr_val], None));
             } else {
@@ -215,7 +217,7 @@ fn generate_statement_tac(statement: &Statement, code_env: &mut CodeEnv) -> Vec<
                     let (result, _) = generate_expr_tac(
                         expr,
                         code_env,
-                        Some(var_temp_loc),
+                        ValTarget::Ident(var_temp_loc),
                         Some(t.to_size().unwrap()),
                     );
 
@@ -236,7 +238,7 @@ fn generate_statement_tac(statement: &Statement, code_env: &mut CodeEnv) -> Vec<
             };
         }
         Statement::Expr(expr) => {
-            let (result, _) = generate_expr_tac(expr, code_env, None, None);
+            let (result, _) = generate_expr_tac(expr, code_env, ValTarget::None, None);
             result
         }
         Statement::Empty => {
@@ -282,7 +284,8 @@ fn generate_if_statement_tac(
     let label_not_taken = format!("if_not_taken_{}", label_num);
     let label_end = format!("if_end_{}", label_num);
 
-    let (mut result, decision_val) = generate_expr_tac(condition, code_env, None, None);
+    let (mut result, decision_val) =
+        generate_expr_tac(condition, code_env, ValTarget::Generate, None);
     result.push(TacInstr::JmpZero(label_not_taken.clone(), decision_val));
     result.extend(generate_statement_tac(taken, code_env));
     result.push(TacInstr::Jmp(label_end.clone()));

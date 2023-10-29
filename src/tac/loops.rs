@@ -6,7 +6,8 @@ use crate::{
 };
 
 use super::{
-    expr::generate_expr_tac, generate_statement_tac, get_new_label_number, CodeEnv, TacInstr,
+    expr::{generate_expr_tac, ValTarget},
+    generate_statement_tac, get_new_label_number, CodeEnv, TacInstr,
 };
 
 pub fn generate_continue_tac(code_env: &CodeEnv) -> Vec<TacInstr> {
@@ -40,7 +41,7 @@ pub fn gen_while_loop_tac(
 
     let mut result = Vec::new();
     result.push(TacInstr::Label(label_loop_begin.clone()));
-    let (expr_result, expr_val) = generate_expr_tac(condition, code_env, None, None);
+    let (expr_result, expr_val) = generate_expr_tac(condition, code_env, ValTarget::Generate, None);
     result.extend(expr_result);
     result.push(TacInstr::JmpZero(label_loop_end.clone(), expr_val));
     result.extend(generate_statement_tac(body, code_env));
@@ -78,12 +79,13 @@ pub fn gen_for_loop_tac(
             let var_temp_loc = get_new_temp_name(t.to_size().unwrap());
             header_var_map.insert(var_name.clone(), var_temp_loc);
             if let Some(expr) = optional_expr {
-                let (instrs, _) = generate_expr_tac(expr, code_env, Some(var_temp_loc), None);
+                let (instrs, _) =
+                    generate_expr_tac(expr, code_env, ValTarget::Ident(var_temp_loc), None);
                 result.extend(instrs);
             }
         }
         Statement::Expr(expr) => {
-            let (instrs, _) = generate_expr_tac(expr, code_env, None, None);
+            let (instrs, _) = generate_expr_tac(expr, code_env, ValTarget::None, None);
             result.extend(instrs);
         }
         Statement::Empty => {}
@@ -93,14 +95,15 @@ pub fn gen_for_loop_tac(
     result.push(TacInstr::Label(start_loop_label.clone()));
 
     if let Some(control_expr) = control_expr {
-        let (ctrl_instrs, ctrl_val) = generate_expr_tac(control_expr, code_env, None, None);
+        let (ctrl_instrs, ctrl_val) =
+            generate_expr_tac(control_expr, code_env, ValTarget::Generate, None);
         result.extend(ctrl_instrs);
         result.push(TacInstr::JmpZero(exit_loop_label.clone(), ctrl_val));
     }
     result.extend(generate_statement_tac(body, code_env));
     result.push(TacInstr::Label(before_post_expr_label.clone()));
     if let Some(post_exr) = post_expr {
-        let (post_instrs, _) = generate_expr_tac(post_exr, code_env, None, None);
+        let (post_instrs, _) = generate_expr_tac(post_exr, code_env, ValTarget::None, None);
         result.extend(post_instrs);
     }
     result.push(TacInstr::Jmp(start_loop_label));
