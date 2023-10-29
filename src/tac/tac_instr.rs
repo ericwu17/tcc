@@ -6,6 +6,9 @@ use super::{Identifier, TacVal};
 
 pub enum TacInstr {
     Return(TacVal),
+    MemChunk(Identifier, usize), // sets the identifier to a pointer pointing to a usize number of bytes
+    Deref(Identifier, Identifier), // a = *b
+    Ref(Identifier, Identifier), // a = &b
     BinOp(Identifier, TacVal, TacVal, BinOp),
     UnOp(Identifier, TacVal, UnOp),
     Copy(Identifier, TacVal),
@@ -21,13 +24,13 @@ impl TacInstr {
     pub fn get_written_identifier(&self) -> Option<Identifier> {
         let mut result = None;
         match self {
-            TacInstr::BinOp(ident, _, _, _) => {
-                result = Some(*ident);
-            }
-            TacInstr::UnOp(ident, _, _) => {
-                result = Some(*ident);
-            }
-            TacInstr::Copy(ident, _) => {
+            TacInstr::LoadArg(ident, _)
+            | TacInstr::BinOp(ident, _, _, _)
+            | TacInstr::UnOp(ident, _, _)
+            | TacInstr::Copy(ident, _)
+            | TacInstr::Deref(ident, _)
+            | TacInstr::Ref(ident, _)
+            | TacInstr::MemChunk(ident, _) => {
                 result = Some(*ident);
             }
             TacInstr::Label(..)
@@ -36,9 +39,6 @@ impl TacInstr {
             | TacInstr::JmpZero(..)
             | TacInstr::Return(_) => {}
             TacInstr::Call(_, _, optional_ident) => result = *optional_ident,
-            TacInstr::LoadArg(ident, _) => {
-                result = Some(*ident);
-            }
         }
         result
     }
@@ -54,27 +54,21 @@ impl TacInstr {
                     result.push(*ident);
                 }
             }
-            TacInstr::UnOp(_, v, _) => {
+            TacInstr::UnOp(_, v, _)
+            | TacInstr::Copy(_, v)
+            | TacInstr::JmpNotZero(_, v)
+            | TacInstr::JmpZero(_, v)
+            | TacInstr::Return(v) => {
                 if let TacVal::Var(ident) = v {
                     result.push(*ident);
                 }
             }
-            TacInstr::Copy(_, v) => {
-                if let TacVal::Var(ident) = v {
-                    result.push(*ident);
-                }
-            }
-            TacInstr::Label(..) | TacInstr::Jmp(..) | TacInstr::LoadArg(_, _) => {}
-            TacInstr::JmpNotZero(_, v) => {
-                if let TacVal::Var(ident) = v {
-                    result.push(*ident);
-                }
-            }
-            TacInstr::JmpZero(_, v) => {
-                if let TacVal::Var(ident) = v {
-                    result.push(*ident);
-                }
-            }
+
+            TacInstr::Label(..)
+            | TacInstr::Jmp(..)
+            | TacInstr::LoadArg(_, _)
+            | TacInstr::MemChunk(_, _) => {}
+
             TacInstr::Call(_, args, _) => {
                 for arg in args {
                     if let TacVal::Var(ident) = arg {
@@ -82,10 +76,8 @@ impl TacInstr {
                     }
                 }
             }
-            TacInstr::Return(v) => {
-                if let TacVal::Var(ident) = v {
-                    result.push(*ident);
-                }
+            TacInstr::Ref(_, ident) | TacInstr::Deref(_, ident) => {
+                result.push(*ident);
             }
         }
         result
@@ -125,6 +117,15 @@ impl fmt::Debug for TacInstr {
             }
             TacInstr::LoadArg(ident, index) => {
                 write!(f, "{:?} is argument {}", ident, index)
+            }
+            TacInstr::MemChunk(ident, size) => {
+                write!(f, "{:?} = alloc({})", ident, size)
+            }
+            TacInstr::Deref(ident1, ident2) => {
+                write!(f, "{:?} = *{:?}", ident1, ident2)
+            }
+            TacInstr::Ref(ident1, ident2) => {
+                write!(f, "{:?} = &{:?}", ident1, ident2)
             }
         }
     }

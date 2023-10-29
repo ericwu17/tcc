@@ -265,6 +265,9 @@ fn gen_x86_for_tac(result: &mut Vec<X86Instr>, instr: &TacInstr, reg_alloc: &Reg
             result.push(X86Instr::Ret);
         }
         TacInstr::LoadArg(ident, arg_num) => gen_load_arg_code(result, ident, *arg_num, reg_alloc),
+        TacInstr::MemChunk(_, _) => todo!(),
+        TacInstr::Deref(_, _) => todo!(),
+        TacInstr::Ref(_, _) => todo!(),
     }
 }
 

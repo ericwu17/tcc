@@ -5,9 +5,7 @@ use crate::{
 
 use super::{
     get_new_temp_name,
-    prefix_postfix_inc_dec::{
-        gen_postfix_dec_tac, gen_postfix_inc_tac, gen_prefix_dec_tac, gen_prefix_inc_tac,
-    },
+    prefix_postfix_inc_dec::{gen_prefix_postfix_inc_dec, Operation},
     resolve_variable_to_temp_name, CodeEnv, Identifier, TacInstr, TacVal, VarSize,
 };
 
@@ -79,14 +77,19 @@ pub fn generate_expr_tac(
             target_temp_name,
             suggested_size,
         ),
-        // Expr::PostfixInc(var) => gen_postfix_inc_tac(var, code_env, target_temp_name),
-        // Expr::PostfixDec(var) => gen_postfix_dec_tac(var, code_env, target_temp_name),
-        // Expr::PrefixInc(var) => gen_prefix_inc_tac(var, code_env, target_temp_name),
-        // Expr::PrefixDec(var) => gen_prefix_dec_tac(var, code_env, target_temp_name),
-        Expr::PostfixInc(var) => todo!(),
-        Expr::PostfixDec(var) => todo!(),
-        Expr::PrefixInc(var) => todo!(),
-        Expr::PrefixDec(var) => todo!(),
+
+        Expr::PostfixInc(var) => {
+            gen_prefix_postfix_inc_dec(var, Operation::PostfixInc, code_env, target_temp_name)
+        }
+        Expr::PostfixDec(var) => {
+            gen_prefix_postfix_inc_dec(var, Operation::PostfixDec, code_env, target_temp_name)
+        }
+        Expr::PrefixInc(var) => {
+            gen_prefix_postfix_inc_dec(var, Operation::PrefixInc, code_env, target_temp_name)
+        }
+        Expr::PrefixDec(var) => {
+            gen_prefix_postfix_inc_dec(var, Operation::PrefixDec, code_env, target_temp_name)
+        }
 
         Expr::FunctionCall(func_ident, args) => {
             gen_function_call_tac(func_ident, args, code_env, target_temp_name)
@@ -114,6 +117,10 @@ fn generate_binop_tac(
             target_temp_name,
             suggested_size,
         );
+    }
+
+    if op == BinOp::Assign {
+        return generate_assignment_tac(expr1, expr2, code_env, target_temp_name);
     }
 
     let final_temp_name: Identifier = if let Some(ident) = target_temp_name {
@@ -206,6 +213,33 @@ fn generate_short_circuiting_tac(
             (result, TacVal::Var(final_temp_name))
         }
         _ => unreachable!(),
+    }
+}
+
+fn generate_assignment_tac(
+    lhs: &Expr,
+    rhs: &Expr,
+    code_env: &CodeEnv,
+    target_temp_name: Option<Identifier>,
+) -> (Vec<TacInstr>, TacVal) {
+    match lhs {
+        Expr::Var(var_name) => {
+            let temp_name_of_assignee = resolve_variable_to_temp_name(var_name, code_env);
+
+            let (mut result, tac_val) = generate_expr_tac(
+                rhs,
+                code_env,
+                Some(temp_name_of_assignee),
+                Some(temp_name_of_assignee.1),
+            );
+            if let Some(ident) = target_temp_name {
+                result.push(TacInstr::Copy(ident, tac_val));
+                (result, TacVal::Var(ident))
+            } else {
+                (result, TacVal::Var(temp_name_of_assignee))
+            }
+        }
+        _ => todo!(),
     }
 }
 
@@ -323,14 +357,10 @@ pub fn get_expr_size(expr: &Expr, code_env: &CodeEnv) -> Option<VarSize> {
         Expr::FunctionCall(_, _) => Some(VarSize::default()),
         Expr::Deref(_) => todo!(),
         Expr::Ref(_) => todo!(),
-        Expr::PostfixDec(_) => todo!(),
-        Expr::PostfixInc(_) => todo!(),
-        Expr::PrefixDec(_) => todo!(),
-        Expr::PrefixInc(_) => todo!(),
-        // Expr::PostfixDec(name) => Some(resolve_variable_to_temp_name(name, code_env).1),
-        // Expr::PostfixInc(name) => Some(resolve_variable_to_temp_name(name, code_env).1),
-        // Expr::PrefixDec(name) => Some(resolve_variable_to_temp_name(name, code_env).1),
-        // Expr::PrefixInc(name) => Some(resolve_variable_to_temp_name(name, code_env).1),
+        Expr::PostfixDec(inner_expr)
+        | Expr::PostfixInc(inner_expr)
+        | Expr::PrefixDec(inner_expr)
+        | Expr::PrefixInc(inner_expr) => get_expr_size(inner_expr, code_env),
         Expr::Sizeof(_) => Some(VarSize::default()),
     };
 

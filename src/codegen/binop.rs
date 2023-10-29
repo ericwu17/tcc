@@ -85,7 +85,7 @@ pub fn gen_binop_code(
             generate_cmp_code(result, val1_reg, val2_reg, CCode::NE, bigger_operand_size)
         }
         BinOp::LogicalAnd | BinOp::LogicalOr => unreachable!(), // unreachable because short-circuiting code was generated in conversion to Tac phase.
-        BinOp::Assign => todo!(),
+        BinOp::Assign => unreachable!(), // unreachable because we will never generate TAC with the assign operator
     }
 
     result.push(X86Instr::Mov {

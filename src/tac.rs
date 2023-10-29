@@ -131,6 +131,8 @@ fn generate_function_tac(function: &Function) -> TacFunc {
     let mut index: usize = 0;
     for (arg_name, arg_type) in &function.args {
         // TODO: handle this unwrap (also in many other places)
+        // the unwrap is assuming that variable arguments will have a size
+        // (probably actually true here, but not true for local arrays)
         let var_temp_loc = get_new_temp_name(arg_type.to_size().unwrap());
         this_scopes_variable_map.insert(arg_name.clone(), var_temp_loc);
         body.push(TacInstr::LoadArg(var_temp_loc, index));
