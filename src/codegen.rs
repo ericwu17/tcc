@@ -95,7 +95,7 @@ pub enum X86Instr {
     },
     MovImm {
         dst: Location,
-        imm: i32,
+        imm: i64,
         size: VarSize,
     },
     Add {
@@ -114,7 +114,7 @@ pub enum X86Instr {
     },
     SubImm {
         dst: Reg,
-        imm: i32,
+        imm: i64,
         size: VarSize,
     },
     Cdq, // convert double to quad, sign extends eax into edx:eax
@@ -199,7 +199,7 @@ fn generate_function_x86(result: &mut Vec<X86Instr>, function: &TacFunc) {
     });
     result.push(X86Instr::SubImm {
         dst: Reg::Rsp,
-        imm: num_bytes_needed as i32,
+        imm: num_bytes_needed as i64,
         size: VarSize::Quad,
     });
 

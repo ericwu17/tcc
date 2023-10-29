@@ -112,20 +112,19 @@ fn check_expr_vars(expr: &Expr, known_var_names: &HashSet<String>) {
     match expr {
         Expr::Int(_) => {}
         Expr::Var(var_name) => var_name_to_check = Some(var_name),
-        Expr::Assign(var_name, expr) => {
-            var_name_to_check = Some(var_name);
-            exprs_to_check = vec![expr.as_ref()];
-        }
         Expr::UnOp(_, inner_expr) => exprs_to_check = vec![inner_expr.as_ref()],
         Expr::BinOp(_, expr1, expr2) => exprs_to_check = vec![expr1.as_ref(), expr2.as_ref()],
         Expr::Ternary(expr1, expr2, expr3) => {
             exprs_to_check = vec![expr1.as_ref(), expr2.as_ref(), expr3.as_ref()]
         }
         Expr::FunctionCall(_, exprs) => exprs_to_check = exprs.iter().collect(),
-        Expr::PostfixDec(var_name) => var_name_to_check = Some(var_name),
-        Expr::PostfixInc(var_name) => var_name_to_check = Some(var_name),
-        Expr::PrefixDec(var_name) => var_name_to_check = Some(var_name),
-        Expr::PrefixInc(var_name) => var_name_to_check = Some(var_name),
+        Expr::Deref(expr) => exprs_to_check = vec![expr],
+        Expr::Ref(expr) => exprs_to_check = vec![expr],
+        Expr::PostfixDec(var_name) => exprs_to_check = vec![var_name],
+        Expr::PostfixInc(var_name) => exprs_to_check = vec![var_name],
+        Expr::PrefixDec(var_name) => exprs_to_check = vec![var_name],
+        Expr::PrefixInc(var_name) => exprs_to_check = vec![var_name],
+        Expr::Sizeof(inner_expr) => exprs_to_check = vec![inner_expr],
     }
 
     if let Some(var_name) = var_name_to_check {

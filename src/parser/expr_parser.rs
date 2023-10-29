@@ -1,20 +1,23 @@
+use super::factor_parser::generate_factor_ast;
 use super::TokenCursor;
 use crate::errors::display::err_display;
 use crate::tokenizer::{operator::Op, Token};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
-    Int(i32),
+    Int(i64),
     Var(String),
-    Assign(String, Box<Expr>),
     UnOp(UnOp, Box<Expr>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
     Ternary(Box<Expr>, Box<Expr>, Box<Expr>),
     FunctionCall(String, Vec<Expr>), // Vec<Expr> contains the arguments of the function
-    PostfixDec(String),
-    PostfixInc(String),
-    PrefixDec(String),
-    PrefixInc(String),
+    Deref(Box<Expr>),
+    Ref(Box<Expr>),
+    PostfixDec(Box<Expr>),
+    PostfixInc(Box<Expr>),
+    PrefixDec(Box<Expr>),
+    PrefixInc(Box<Expr>),
+    Sizeof(Box<Expr>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -39,6 +42,7 @@ pub enum BinOp {
     NotEquals,
     LogicalAnd,
     LogicalOr,
+    Assign,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -49,11 +53,13 @@ pub enum BinOpPrecedenceLevel {
     EqCmp,
     LogicalAnd,
     LogicalOr,
+    Assignment,
 }
 
 impl BinOpPrecedenceLevel {
     pub fn next_level(&self) -> Option<Self> {
         match self {
+            BinOpPrecedenceLevel::Assignment => Some(BinOpPrecedenceLevel::LogicalOr),
             BinOpPrecedenceLevel::LogicalOr => Some(BinOpPrecedenceLevel::LogicalAnd),
             BinOpPrecedenceLevel::LogicalAnd => Some(BinOpPrecedenceLevel::EqCmp),
             BinOpPrecedenceLevel::EqCmp => Some(BinOpPrecedenceLevel::OrderingCmp),
@@ -64,7 +70,7 @@ impl BinOpPrecedenceLevel {
     }
 
     pub fn lowest_level() -> Self {
-        BinOpPrecedenceLevel::LogicalOr
+        BinOpPrecedenceLevel::Assignment
     }
 }
 
@@ -72,48 +78,6 @@ pub fn generate_expr_ast(
     tokens: &mut TokenCursor,
     curr_operator_precedence: BinOpPrecedenceLevel,
 ) -> Expr {
-    if curr_operator_precedence == BinOpPrecedenceLevel::lowest_level() {
-        // handle assignment of variables
-        if let Some(Token::Identifier { val }) = tokens.peek() {
-            let val = val.clone();
-            if tokens.peek_nth(2) == Some(&Token::AssignmentEquals) {
-                tokens.next();
-                tokens.next();
-
-                let rhs_expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
-                return Expr::Assign(val, Box::new(rhs_expr));
-            } else if tokens.peek_nth(2) == Some(&Token::Op(Op::PlusEquals)) {
-                tokens.next();
-                tokens.next();
-
-                let rhs_expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
-
-                return Expr::Assign(
-                    val.clone(),
-                    Box::new(Expr::BinOp(
-                        BinOp::Plus,
-                        Box::new(Expr::Var(val)),
-                        Box::new(rhs_expr),
-                    )),
-                );
-            } else if tokens.peek_nth(2) == Some(&Token::Op(Op::MinusEquals)) {
-                tokens.next();
-                tokens.next();
-
-                let rhs_expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
-
-                return Expr::Assign(
-                    val.clone(),
-                    Box::new(Expr::BinOp(
-                        BinOp::Minus,
-                        Box::new(Expr::Var(val)),
-                        Box::new(rhs_expr),
-                    )),
-                );
-            }
-        }
-    }
-
     let mut expr: Expr;
     let next_operator_precedence_option = curr_operator_precedence.next_level();
 
@@ -151,14 +115,19 @@ pub fn generate_expr_ast(
             .unwrap()
             .to_binop_precedence_level(curr_operator_precedence)
         {
-            tokens.next();
+            let curr_token = tokens.next().unwrap().clone();
             let next_expr;
-            if let Some(next_operator_precedence) = next_operator_precedence_option {
-                next_expr = generate_expr_ast(tokens, next_operator_precedence);
+
+            if curr_operator_precedence == BinOpPrecedenceLevel::Assignment {
+                expr = generate_assignment_expr_ast(tokens, expr, curr_token);
             } else {
-                next_expr = generate_factor_ast(tokens);
+                if let Some(next_operator_precedence) = next_operator_precedence_option {
+                    next_expr = generate_expr_ast(tokens, next_operator_precedence);
+                } else {
+                    next_expr = generate_factor_ast(tokens);
+                }
+                expr = Expr::BinOp(next_op, Box::new(expr), Box::new(next_expr));
             }
-            expr = Expr::BinOp(next_op, Box::new(expr), Box::new(next_expr));
         } else {
             break;
         }
@@ -166,103 +135,74 @@ pub fn generate_expr_ast(
     return expr;
 }
 
-fn generate_factor_ast(tokens: &mut TokenCursor) -> Expr {
-    match tokens.peek() {
-        Some(Token::OpenParen) => {
-            tokens.next(); // consume opening parenthesis
-
-            let expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
-
-            if tokens.next() != Some(&Token::CloseParen) {
-                err_display(
-                    format!(
-                        "expected closing parenthesis, found {:?}",
-                        tokens.last().unwrap()
-                    ),
-                    tokens.get_last_ptr(),
-                )
-            }
-            return expr;
+fn generate_assignment_expr_ast(
+    tokens: &mut TokenCursor,
+    lhs_expr: Expr,
+    curr_token: Token,
+) -> Expr {
+    // ASSIGNMENT IS RIGHT ASSOCIATIVE, so we don't increment the operator precedence.
+    let next_expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::Assignment);
+    let expr;
+    match curr_token {
+        Token::Op(Op::AssignmentEquals) => {
+            expr = Expr::BinOp(BinOp::Assign, Box::new(lhs_expr), Box::new(next_expr));
         }
-        Some(token) if token.to_un_op().is_some() => {
-            let un_op = token.to_un_op().unwrap();
-            tokens.next();
-            let factor = generate_factor_ast(tokens);
-            return Expr::UnOp(un_op, Box::new(factor));
+        Token::Op(Op::PlusEquals) => {
+            expr = Expr::BinOp(
+                BinOp::Assign,
+                Box::new(lhs_expr.clone()),
+                Box::new(Expr::BinOp(
+                    BinOp::Plus,
+                    Box::new(lhs_expr),
+                    Box::new(next_expr),
+                )),
+            );
         }
-        Some(Token::IntLit { val }) => {
-            let val_i32 = i32::from_str_radix(val, 10).unwrap();
-            tokens.next();
-
-            return Expr::Int(val_i32);
+        Token::Op(Op::MinusEquals) => {
+            expr = Expr::BinOp(
+                BinOp::Assign,
+                Box::new(lhs_expr.clone()),
+                Box::new(Expr::BinOp(
+                    BinOp::Minus,
+                    Box::new(lhs_expr),
+                    Box::new(next_expr),
+                )),
+            );
         }
-        Some(Token::Identifier { val }) => {
-            let val = val.clone();
-            tokens.next();
-
-            if tokens.peek() == Some(&Token::Op(Op::MinusMinus)) {
-                tokens.next();
-                return Expr::PostfixDec(val);
-            } else if tokens.peek() == Some(&Token::Op(Op::PlusPlus)) {
-                tokens.next();
-                return Expr::PostfixInc(val);
-            } else if tokens.peek() == Some(&Token::OpenParen) {
-                tokens.next(); // consume the open paren
-                let args = parse_function_args(tokens);
-                if tokens.next() != Some(&Token::CloseParen) {
-                    err_display(
-                        format!(
-                            "expected closing parenthesis, found {:?}",
-                            tokens.last().unwrap()
-                        ),
-                        tokens.get_last_ptr(),
-                    )
-                }
-                return Expr::FunctionCall(val, args);
-            }
-            return Expr::Var(val);
+        Token::Op(Op::MulEquals) => {
+            expr = Expr::BinOp(
+                BinOp::Assign,
+                Box::new(lhs_expr.clone()),
+                Box::new(Expr::BinOp(
+                    BinOp::Multiply,
+                    Box::new(lhs_expr),
+                    Box::new(next_expr),
+                )),
+            );
         }
-        Some(Token::Op(op)) if *op == Op::PlusPlus || *op == Op::MinusMinus => {
-            let op = op.clone();
-            tokens.next();
-            match tokens.next() {
-                Some(Token::Identifier { val }) => {
-                    if op == Op::PlusPlus {
-                        return Expr::PrefixInc(val.clone());
-                    } else {
-                        return Expr::PrefixDec(val.clone());
-                    }
-                }
-                _ => err_display(
-                    "expected an identifier after the double inc/dec token",
-                    tokens.get_last_ptr(),
-                ),
-            }
+        Token::Op(Op::DivEquals) => {
+            expr = Expr::BinOp(
+                BinOp::Assign,
+                Box::new(lhs_expr.clone()),
+                Box::new(Expr::BinOp(
+                    BinOp::Divide,
+                    Box::new(lhs_expr),
+                    Box::new(next_expr),
+                )),
+            );
         }
-        _ => err_display(
-            format!("unexpected token: {:?}", tokens.peek()),
-            tokens.get_last_ptr(),
-        ),
+        Token::Op(Op::ModEquals) => {
+            expr = Expr::BinOp(
+                BinOp::Modulus,
+                Box::new(lhs_expr.clone()),
+                Box::new(Expr::BinOp(
+                    BinOp::Plus,
+                    Box::new(lhs_expr),
+                    Box::new(next_expr),
+                )),
+            );
+        }
+        _ => unreachable!(),
     }
-}
-
-fn parse_function_args(tokens: &mut TokenCursor) -> Vec<Expr> {
-    let mut args = Vec::new();
-
-    if tokens.peek() == Some(&Token::CloseParen) {
-        return Vec::new();
-    }
-    loop {
-        args.push(generate_expr_ast(
-            tokens,
-            BinOpPrecedenceLevel::lowest_level(),
-        ));
-        if tokens.peek() == Some(&Token::Comma) {
-            tokens.next(); // consume the comma
-        } else {
-            break;
-        }
-    }
-
-    args
+    return expr;
 }

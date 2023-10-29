@@ -23,7 +23,7 @@ pub enum Token {
     Type(FundT),
     Semicolon,
     Comma,
-    AssignmentEquals,
+
     Op(Op),
     QuestionMark,
     Colon,
@@ -68,6 +68,14 @@ impl Token {
             },
             BinOpPrecedenceLevel::LogicalOr => match self {
                 Token::Op(Op::DoublePipe) => Some(BinOp::LogicalOr),
+                _ => None,
+            },
+            BinOpPrecedenceLevel::Assignment => match self {
+                Token::Op(Op::AssignmentEquals) => Some(BinOp::Assign),
+                Token::Op(Op::PlusEquals) => Some(BinOp::Assign),
+                Token::Op(Op::MinusEquals) => Some(BinOp::Assign),
+                Token::Op(Op::ModEquals) => Some(BinOp::Assign),
+                Token::Op(Op::DivEquals) => Some(BinOp::Assign),
                 _ => None,
             },
         }
@@ -133,7 +141,7 @@ pub fn get_tokens(source_code_contents: String) -> Vec<(Token, SourcePtr)> {
             tokens.push((Token::Op(op), pos));
         } else if next_char == '=' {
             cursor.next();
-            tokens.push((Token::AssignmentEquals, cursor.get_last_pos()));
+            tokens.push((Token::Op(Op::AssignmentEquals), cursor.get_last_pos()));
         } else if next_char == '&' {
             cursor.next();
             tokens.push((Token::Ampersand, cursor.get_last_pos()));

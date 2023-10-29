@@ -1,5 +1,7 @@
 pub mod expr_parser;
+pub mod factor_parser;
 pub mod for_loop_parser;
+pub mod function_arg_decl;
 pub mod token_cursor;
 pub mod types_parser;
 
@@ -11,6 +13,7 @@ use crate::types::VarType;
 use expr_parser::{BinOpPrecedenceLevel, Expr};
 use for_loop_parser::generate_for_loop_ast;
 
+use self::function_arg_decl::parse_function_arg_decl;
 use self::types_parser::parse_variable_declaration;
 
 #[derive(Debug)]
@@ -98,50 +101,6 @@ fn generate_function_ast(tokens: &mut TokenCursor) -> Function {
         args: function_args,
         body,
     }
-}
-
-fn parse_function_arg_decl(tokens: &mut TokenCursor) -> Vec<(String, VarType)> {
-    // TODO: support functions arguments of type pointer to something.
-    let mut args = Vec::new();
-
-    if tokens.peek() == Some(&Token::CloseParen) {
-        return Vec::new();
-    }
-    loop {
-        let arg_type;
-        let arg_name;
-        if let Some(Token::Type(t)) = tokens.next() {
-            arg_type = VarType::Fund(*t);
-        } else {
-            err_display(
-                format!(
-                    "expected type of argument to be specified, found {:?}",
-                    tokens.last()
-                ),
-                tokens.get_last_ptr(),
-            )
-        }
-        if let Some(Token::Identifier { val }) = tokens.next() {
-            arg_name = val;
-        } else {
-            err_display(
-                format!(
-                    "expected identifier for function argument, found {:?}",
-                    tokens.last()
-                ),
-                tokens.get_last_ptr(),
-            )
-        }
-        args.push((arg_name.clone(), arg_type));
-
-        if tokens.peek() == Some(&Token::Comma) {
-            tokens.next(); // consume the comma
-        } else {
-            break;
-        }
-    }
-
-    args
 }
 
 fn generate_compound_stmt_ast(tokens: &mut TokenCursor) -> Vec<Statement> {

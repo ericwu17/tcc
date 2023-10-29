@@ -1,6 +1,7 @@
 use crate::errors::display::err_display;
 use crate::parser::expr_parser::{generate_expr_ast, BinOpPrecedenceLevel};
 use crate::parser::{generate_statement_ast, Statement, TokenCursor};
+use crate::tokenizer::operator::Op;
 use crate::tokenizer::Token;
 use crate::types::VarType;
 
@@ -114,7 +115,7 @@ fn generate_for_loop_decl_expr(tokens: &mut TokenCursor) -> Statement {
         )
     }
 
-    if tokens.next() != Some(&Token::AssignmentEquals) {
+    if tokens.next() != Some(&Token::Op(Op::AssignmentEquals)) {
         err_display(
             format!(
                 "expected '=' in declaration, found {:?}",

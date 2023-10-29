@@ -107,9 +107,6 @@ fn check_expr_funcs(expr: &Expr, known_funcs: &Vec<FuncDecl>) {
         | Expr::PostfixInc(_)
         | Expr::PrefixDec(_)
         | Expr::PrefixInc(_) => {}
-        Expr::Assign(_, expr) => {
-            exprs_to_check = vec![expr.as_ref()];
-        }
         Expr::UnOp(_, inner_expr) => exprs_to_check = vec![inner_expr.as_ref()],
         Expr::BinOp(_, expr1, expr2) => exprs_to_check = vec![expr1.as_ref(), expr2.as_ref()],
         Expr::Ternary(expr1, expr2, expr3) => {
@@ -121,6 +118,9 @@ fn check_expr_funcs(expr: &Expr, known_funcs: &Vec<FuncDecl>) {
                 name: func_name.clone(),
                 num_args: exprs.len(),
             });
+        }
+        Expr::Deref(inner_expr) | Expr::Ref(inner_expr) | Expr::Sizeof(inner_expr) => {
+            exprs_to_check = vec![inner_expr.as_ref()]
         }
     }
 

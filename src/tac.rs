@@ -7,6 +7,7 @@ pub mod tac_func;
 pub mod tac_instr;
 
 use crate::errors::check_funcs::check_funcs;
+use crate::errors::check_types::check_types;
 use crate::errors::check_vars::check_vars;
 use crate::parser::Function;
 use crate::parser::{expr_parser::Expr, Program, Statement};
@@ -46,7 +47,7 @@ impl Identifier {
 
 #[derive(Clone)]
 pub enum TacVal {
-    Lit(i32, VarSize),
+    Lit(i64, VarSize),
     Var(Identifier),
 }
 
@@ -108,9 +109,10 @@ fn get_new_label_number() -> usize {
     }
 }
 
-pub fn generate_tac(program: Program) -> Vec<TacFunc> {
+pub fn generate_tac(mut program: Program) -> Vec<TacFunc> {
     check_funcs(&program);
     check_vars(&program);
+    check_types(&mut program); // check types will also evaluate sizeof, this we need mut
 
     let mut tac_funcs = Vec::new();
 

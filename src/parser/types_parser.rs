@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use crate::{
     errors::display::err_display,
-    tokenizer::{source_cursor::SourcePtr, Token},
+    tokenizer::{operator::Op, source_cursor::SourcePtr, Token},
     types::VarType,
 };
 
@@ -23,7 +23,7 @@ pub fn parse_variable_declaration(tokens: &mut TokenCursor) -> Statement {
     let mut token_buffer = VecDeque::new();
     while tokens.peek().is_some()
         && tokens.peek().unwrap() != &Token::Semicolon
-        && tokens.peek().unwrap() != &Token::AssignmentEquals
+        && tokens.peek().unwrap() != &Token::Op(Op::AssignmentEquals)
     {
         token_buffer.push_back(tokens.next().unwrap().clone());
     }
@@ -32,7 +32,7 @@ pub fn parse_variable_declaration(tokens: &mut TokenCursor) -> Statement {
         parse_type_declaration(token_buffer, tokens.get_last_ptr(), fund_t);
 
     let mut optional_expr = None;
-    if tokens.peek() == Some(&Token::AssignmentEquals) {
+    if tokens.peek() == Some(&Token::Op(Op::AssignmentEquals)) {
         tokens.next();
         optional_expr = Some(generate_expr_ast(
             tokens,

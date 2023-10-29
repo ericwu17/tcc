@@ -39,22 +39,6 @@ pub fn generate_expr_tac(
                 TacVal::Var(resolve_variable_to_temp_name(var_name, code_env)),
             );
         }
-        Expr::Assign(var_name, expr) => {
-            let temp_name_of_assignee = resolve_variable_to_temp_name(var_name, code_env);
-
-            let (mut result, tac_val) = generate_expr_tac(
-                expr,
-                code_env,
-                Some(temp_name_of_assignee),
-                Some(temp_name_of_assignee.1),
-            );
-            if let Some(ident) = target_temp_name {
-                result.push(TacInstr::Copy(ident, tac_val));
-                (result, TacVal::Var(ident))
-            } else {
-                (result, TacVal::Var(temp_name_of_assignee))
-            }
-        }
         Expr::Int(v) => {
             if let Some(ident) = target_temp_name {
                 (
@@ -95,13 +79,21 @@ pub fn generate_expr_tac(
             target_temp_name,
             suggested_size,
         ),
-        Expr::PostfixInc(var) => gen_postfix_inc_tac(var, code_env, target_temp_name),
-        Expr::PostfixDec(var) => gen_postfix_dec_tac(var, code_env, target_temp_name),
-        Expr::PrefixInc(var) => gen_prefix_inc_tac(var, code_env, target_temp_name),
-        Expr::PrefixDec(var) => gen_prefix_dec_tac(var, code_env, target_temp_name),
+        // Expr::PostfixInc(var) => gen_postfix_inc_tac(var, code_env, target_temp_name),
+        // Expr::PostfixDec(var) => gen_postfix_dec_tac(var, code_env, target_temp_name),
+        // Expr::PrefixInc(var) => gen_prefix_inc_tac(var, code_env, target_temp_name),
+        // Expr::PrefixDec(var) => gen_prefix_dec_tac(var, code_env, target_temp_name),
+        Expr::PostfixInc(var) => todo!(),
+        Expr::PostfixDec(var) => todo!(),
+        Expr::PrefixInc(var) => todo!(),
+        Expr::PrefixDec(var) => todo!(),
+
         Expr::FunctionCall(func_ident, args) => {
             gen_function_call_tac(func_ident, args, code_env, target_temp_name)
         }
+        Expr::Deref(_) => todo!(),
+        Expr::Ref(_) => todo!(),
+        Expr::Sizeof(_) => unreachable!(), // sizeof should have been replaced by int literal by check_types
     }
 }
 
@@ -318,7 +310,7 @@ pub fn get_expr_size(expr: &Expr, code_env: &CodeEnv) -> Option<VarSize> {
     let res = match expr {
         Expr::Int(_) => None,
         Expr::Var(name) => Some(resolve_variable_to_temp_name(name, code_env).1),
-        Expr::Assign(name, _) => Some(resolve_variable_to_temp_name(name, code_env).1),
+        // Expr::Assign(name, _) => Some(resolve_variable_to_temp_name(name, code_env).1),
         Expr::UnOp(_, inner_expr) => get_expr_size(inner_expr, code_env),
         Expr::BinOp(_, inner_expr_1, inner_expr_2) => get_bigger_size(
             get_expr_size(inner_expr_1, code_env),
@@ -329,10 +321,17 @@ pub fn get_expr_size(expr: &Expr, code_env: &CodeEnv) -> Option<VarSize> {
             get_expr_size(inner_expr_2, code_env),
         ),
         Expr::FunctionCall(_, _) => Some(VarSize::default()),
-        Expr::PostfixDec(name) => Some(resolve_variable_to_temp_name(name, code_env).1),
-        Expr::PostfixInc(name) => Some(resolve_variable_to_temp_name(name, code_env).1),
-        Expr::PrefixDec(name) => Some(resolve_variable_to_temp_name(name, code_env).1),
-        Expr::PrefixInc(name) => Some(resolve_variable_to_temp_name(name, code_env).1),
+        Expr::Deref(_) => todo!(),
+        Expr::Ref(_) => todo!(),
+        Expr::PostfixDec(_) => todo!(),
+        Expr::PostfixInc(_) => todo!(),
+        Expr::PrefixDec(_) => todo!(),
+        Expr::PrefixInc(_) => todo!(),
+        // Expr::PostfixDec(name) => Some(resolve_variable_to_temp_name(name, code_env).1),
+        // Expr::PostfixInc(name) => Some(resolve_variable_to_temp_name(name, code_env).1),
+        // Expr::PrefixDec(name) => Some(resolve_variable_to_temp_name(name, code_env).1),
+        // Expr::PrefixInc(name) => Some(resolve_variable_to_temp_name(name, code_env).1),
+        Expr::Sizeof(_) => Some(VarSize::default()),
     };
 
     if res == Some(VarSize::Quad) {
