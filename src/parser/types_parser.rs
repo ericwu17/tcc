@@ -75,6 +75,9 @@ fn parse_type_declaration(
             let arr_size;
             if let Some(Token::IntLit { val }) = tokens.pop_back() {
                 arr_size = usize::from_str_radix(&val, 10).unwrap();
+                if arr_size == 0 {
+                    err_display("error parsing array type: zero length", location)
+                }
             } else {
                 err_display(
                     "error parsing array type, integer length not found",
