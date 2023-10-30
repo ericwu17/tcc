@@ -62,11 +62,15 @@ pub fn generate_factor_ast(tokens: &mut TokenCursor) -> Expr {
         }
         Some(Token::Sizeof) => {
             tokens.next(); // consume the "sizeof"
-            return Expr::new(ExprEnum::Sizeof(Box::new(generate_expr_ast(
+            assert_eq!(tokens.next(), Some(&Token::OpenParen));
+            let expr = Expr::new(ExprEnum::Sizeof(Box::new(generate_expr_ast(
                 tokens,
                 BinOpPrecedenceLevel::lowest_level(),
             ))));
+            assert_eq!(tokens.next(), Some(&Token::CloseParen));
+            return expr;
         }
+
         Some(Token::IntLit { val }) => {
             let val_i32 = i64::from_str_radix(val, 10).unwrap();
             tokens.next();
