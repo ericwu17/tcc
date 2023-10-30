@@ -3,11 +3,11 @@ pub mod binop;
 pub mod builtin_functions;
 pub mod functions;
 pub mod reg;
+pub mod register_allocator;
 pub mod unop;
-use std::collections::HashMap;
 
 use crate::{
-    tac::{tac_func::TacFunc, tac_instr::TacInstr, Identifier, TacVal},
+    tac::{tac_func::TacFunc, tac_instr::TacInstr, TacVal},
     types::VarSize,
 };
 
@@ -15,47 +15,9 @@ use self::{
     binop::gen_binop_code,
     functions::{gen_load_arg_code, generate_function_call_code},
     reg::Reg,
+    register_allocator::RegisterAllocator,
     unop::gen_unop_code,
 };
-
-pub struct RegisterAllocator {
-    map: HashMap<Identifier, Location>,
-}
-
-impl RegisterAllocator {
-    fn new(tac_instrs: &Vec<TacInstr>) -> (Self, usize) {
-        let mut set_of_temporaries: Vec<Identifier> = Vec::new();
-
-        for instr in tac_instrs {
-            for ident in instr.get_read_identifiers() {
-                if !set_of_temporaries.contains(&ident) {
-                    eprintln!(
-                        "warning: found read from temporary {:?} with writing first.",
-                        ident
-                    );
-                }
-            }
-            if let Some(ident) = instr.get_written_identifier() {
-                set_of_temporaries.push(ident);
-            }
-        }
-
-        let mut map = HashMap::new();
-
-        let mut bytes_needed = 0;
-
-        for identifier in &set_of_temporaries {
-            bytes_needed += identifier.get_num_bytes();
-            map.insert(*identifier, Location::Mem(bytes_needed));
-        }
-
-        (RegisterAllocator { map }, bytes_needed)
-    }
-
-    fn get_location(&self, temporary: Identifier) -> Location {
-        return *self.map.get(&temporary).unwrap();
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CCode {
@@ -265,7 +227,9 @@ fn gen_x86_for_tac(result: &mut Vec<X86Instr>, instr: &TacInstr, reg_alloc: &Reg
             result.push(X86Instr::Ret);
         }
         TacInstr::LoadArg(ident, arg_num) => gen_load_arg_code(result, ident, *arg_num, reg_alloc),
-        TacInstr::MemChunk(_, _) => todo!(),
+        TacInstr::MemChunk(_, _) => {
+            // no code needs to be generated for a mem chunk
+        }
         TacInstr::Deref(_, _) => todo!(),
         TacInstr::Ref(_, _) => todo!(),
         TacInstr::DerefStore(_, _) => todo!(),
