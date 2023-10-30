@@ -2,9 +2,10 @@ use super::factor_parser::generate_factor_ast;
 use super::TokenCursor;
 use crate::errors::display::err_display;
 use crate::tokenizer::{operator::Op, Token};
+use crate::types::VarType;
 
 #[derive(Debug, Clone)]
-pub enum Expr {
+pub enum ExprEnum {
     Int(i64),
     Var(String),
     UnOp(UnOp, Box<Expr>),
@@ -18,6 +19,21 @@ pub enum Expr {
     PrefixDec(Box<Expr>),
     PrefixInc(Box<Expr>),
     Sizeof(Box<Expr>),
+}
+
+#[derive(Debug, Clone)]
+pub struct Expr {
+    pub content: ExprEnum,
+    pub type_: Option<VarType>,
+}
+
+impl Expr {
+    pub fn new(content: ExprEnum) -> Self {
+        Expr {
+            content,
+            type_: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -106,7 +122,11 @@ pub fn generate_expr_ast(
 
             let second_expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::lowest_level());
 
-            return Expr::Ternary(Box::new(expr), Box::new(first_expr), Box::new(second_expr));
+            return Expr::new(ExprEnum::Ternary(
+                Box::new(expr),
+                Box::new(first_expr),
+                Box::new(second_expr),
+            ));
         }
 
         // if the next token is a binary operator that is on the current precedence level:
@@ -126,7 +146,11 @@ pub fn generate_expr_ast(
                 } else {
                     next_expr = generate_factor_ast(tokens);
                 }
-                expr = Expr::BinOp(next_op, Box::new(expr), Box::new(next_expr));
+                expr = Expr::new(ExprEnum::BinOp(
+                    next_op,
+                    Box::new(expr),
+                    Box::new(next_expr),
+                ));
             }
         } else {
             break;
@@ -145,62 +169,66 @@ fn generate_assignment_expr_ast(
     let expr;
     match curr_token {
         Token::Op(Op::AssignmentEquals) => {
-            expr = Expr::BinOp(BinOp::Assign, Box::new(lhs_expr), Box::new(next_expr));
+            expr = Expr::new(ExprEnum::BinOp(
+                BinOp::Assign,
+                Box::new(lhs_expr),
+                Box::new(next_expr),
+            ));
         }
         Token::Op(Op::PlusEquals) => {
-            expr = Expr::BinOp(
+            expr = Expr::new(ExprEnum::BinOp(
                 BinOp::Assign,
                 Box::new(lhs_expr.clone()),
-                Box::new(Expr::BinOp(
+                Box::new(Expr::new(ExprEnum::BinOp(
                     BinOp::Plus,
                     Box::new(lhs_expr),
                     Box::new(next_expr),
-                )),
-            );
+                ))),
+            ));
         }
         Token::Op(Op::MinusEquals) => {
-            expr = Expr::BinOp(
+            expr = Expr::new(ExprEnum::BinOp(
                 BinOp::Assign,
                 Box::new(lhs_expr.clone()),
-                Box::new(Expr::BinOp(
+                Box::new(Expr::new(ExprEnum::BinOp(
                     BinOp::Minus,
                     Box::new(lhs_expr),
                     Box::new(next_expr),
-                )),
-            );
+                ))),
+            ));
         }
         Token::Op(Op::MulEquals) => {
-            expr = Expr::BinOp(
+            expr = Expr::new(ExprEnum::BinOp(
                 BinOp::Assign,
                 Box::new(lhs_expr.clone()),
-                Box::new(Expr::BinOp(
+                Box::new(Expr::new(ExprEnum::BinOp(
                     BinOp::Multiply,
                     Box::new(lhs_expr),
                     Box::new(next_expr),
-                )),
-            );
+                ))),
+            ));
         }
         Token::Op(Op::DivEquals) => {
-            expr = Expr::BinOp(
+            expr = Expr::new(ExprEnum::BinOp(
                 BinOp::Assign,
                 Box::new(lhs_expr.clone()),
-                Box::new(Expr::BinOp(
+                Box::new(Expr::new(ExprEnum::BinOp(
                     BinOp::Divide,
                     Box::new(lhs_expr),
                     Box::new(next_expr),
-                )),
-            );
+                ))),
+            ));
         }
         Token::Op(Op::ModEquals) => {
-            expr = Expr::BinOp(
+            expr = Expr::new(ExprEnum::BinOp(
                 BinOp::Modulus,
                 Box::new(lhs_expr.clone()),
-                Box::new(Expr::BinOp(
+                Box::new(Expr::new(ExprEnum::BinOp(
                     BinOp::Plus,
                     Box::new(lhs_expr),
                     Box::new(next_expr),
-                )),
-            );
+                ))),
+            ));
         }
         _ => unreachable!(),
     }

@@ -268,6 +268,7 @@ fn gen_x86_for_tac(result: &mut Vec<X86Instr>, instr: &TacInstr, reg_alloc: &Reg
         TacInstr::MemChunk(_, _) => todo!(),
         TacInstr::Deref(_, _) => todo!(),
         TacInstr::Ref(_, _) => todo!(),
+        TacInstr::DerefStore(_, _) => todo!(),
     }
 }
 

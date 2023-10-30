@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     parser::expr_parser::{BinOp, Expr},
     types::VarType,

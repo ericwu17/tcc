@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::parser::expr_parser::ExprEnum;
 use crate::parser::{expr_parser::Expr, Program, Statement};
 use crate::types::{FundT, VarType};
 
@@ -143,15 +144,18 @@ fn check_bool_expr(expr: &mut Expr, code_env: &CodeEnv) {
 //      doing anything with an array which is not "index" or "ref"
 //      assignment to something which is not an l_value
 pub fn get_type(expr: &mut Expr, code_env: &CodeEnv) -> Option<VarType> {
-    match expr {
-        Expr::Int(_) => return None,
-        Expr::Var(var_name) => return Some(resolve_variable_to_temp_name(var_name, code_env)),
-        Expr::UnOp(_, inner) => {
+    let type_;
+    match &mut expr.content {
+        ExprEnum::Int(_) => {
+            type_ = None;
+        }
+        ExprEnum::Var(var_name) => type_ = Some(resolve_variable_to_temp_name(&var_name, code_env)),
+        ExprEnum::UnOp(_, inner) => {
             let inner_type = get_type(inner, code_env);
             match &inner_type {
                 Some(t) => match &t {
                     VarType::Fund(_) => {
-                        return inner_type;
+                        type_ = inner_type;
                     }
                     VarType::Ptr(_) => {
                         err_display_no_source("cannot apply unary operator to pointer");
@@ -161,12 +165,14 @@ pub fn get_type(expr: &mut Expr, code_env: &CodeEnv) -> Option<VarType> {
                     }
                 },
                 None => {
-                    return inner_type;
+                    type_ = inner_type;
                 }
             }
         }
-        Expr::BinOp(op, expr_1, expr_2) => get_binop_type(*op, expr_1, expr_2, code_env),
-        Expr::Ternary(ctrl_expr, expr_1, expr_2) => {
+        ExprEnum::BinOp(op, expr_1, expr_2) => {
+            type_ = get_binop_type(*op, expr_1, expr_2, code_env);
+        }
+        ExprEnum::Ternary(ctrl_expr, expr_1, expr_2) => {
             match get_type(ctrl_expr, code_env) {
                 None | Some(VarType::Fund(_)) => {
                     // ok
@@ -183,63 +189,64 @@ pub fn get_type(expr: &mut Expr, code_env: &CodeEnv) -> Option<VarType> {
             if !are_interchangable_types(&t1, &t2) {
                 err_display_no_source("cannot mix types in ternary expression");
             }
-            return t1;
+            type_ = t1;
         }
-        Expr::FunctionCall(_, _) => {
+        ExprEnum::FunctionCall(_, _) => {
             // we will say, for now, that function calls return a flexible type. (functions may only return fundamental types)
-            return None;
+            type_ = None;
         }
-        Expr::Deref(inner) => {
+        ExprEnum::Deref(inner) => {
             let inner_type = get_type(inner, code_env);
             if let Some(VarType::Ptr(t)) = inner_type {
-                return Some(*t);
+                type_ = Some(*t);
             } else if let Some(VarType::Arr(t, _)) = inner_type {
-                return Some(*t);
+                type_ = Some(*t);
             } else {
                 err_display_no_source("tried to dereference something that isn't a pointer.")
             }
         }
-        Expr::Ref(inner) => {
-            if !is_l_value(inner) {
+        ExprEnum::Ref(inner) => {
+            if !is_l_value(&inner) {
                 err_display_no_source("tried to take a reference to something that isn't a lvalue.")
             }
             let inner_type = get_type(inner, code_env).unwrap();
 
-            return Some(VarType::Ptr(Box::new(inner_type)));
+            type_ = Some(VarType::Ptr(Box::new(inner_type)));
         }
-        Expr::PostfixDec(inner)
-        | Expr::PostfixInc(inner)
-        | Expr::PrefixDec(inner)
-        | Expr::PrefixInc(inner) => {
-            if !is_l_value(inner) {
+        ExprEnum::PostfixDec(inner)
+        | ExprEnum::PostfixInc(inner)
+        | ExprEnum::PrefixDec(inner)
+        | ExprEnum::PrefixInc(inner) => {
+            if !is_l_value(&inner) {
                 err_display_no_source("tried use ++ or -- on something that isn't a lvalue.")
             }
-            return Some(get_type(inner, code_env).unwrap());
+            type_ = Some(get_type(inner, code_env).unwrap());
         }
-        Expr::Sizeof(inner_expr) => {
+        ExprEnum::Sizeof(inner_expr) => {
             let inner_type = get_type(inner_expr, code_env);
             let inner_type = inner_type.unwrap_or(VarType::Fund(FundT::Int));
-            *expr = Expr::Int(inner_type.num_bytes() as i64);
-            return Some(VarType::Fund(crate::types::FundT::Long));
+            *expr = Expr::new(ExprEnum::Int(inner_type.num_bytes() as i64));
+            type_ = Some(VarType::Fund(crate::types::FundT::Long));
         }
-    }
+    };
+    expr.type_ = type_.clone();
+    return type_;
 }
 
 pub fn is_l_value(expr: &Expr) -> bool {
-    match expr {
-        Expr::Int(_) => false,
-        Expr::Var(_) => true,
-        Expr::UnOp(_, _) => false,
-        Expr::BinOp(_, _, _) => false,
-        Expr::Ternary(_, _, _) => false,
-        Expr::FunctionCall(_, _) => false,
-        Expr::Deref(_) => true,
-        Expr::Ref(_) => false,
-        Expr::PostfixDec(_) => false,
-        Expr::PostfixInc(_) => false,
-        Expr::PrefixDec(_) => false,
-        Expr::PrefixInc(_) => false,
-        Expr::Sizeof(_) => false,
+    match expr.content {
+        ExprEnum::Var(_) | ExprEnum::Deref(_) => true,
+        ExprEnum::Int(_)
+        | ExprEnum::BinOp(_, _, _)
+        | ExprEnum::UnOp(_, _)
+        | ExprEnum::Ternary(_, _, _)
+        | ExprEnum::FunctionCall(_, _)
+        | ExprEnum::Ref(_)
+        | ExprEnum::PostfixDec(_)
+        | ExprEnum::PostfixInc(_)
+        | ExprEnum::PrefixDec(_)
+        | ExprEnum::PrefixInc(_)
+        | ExprEnum::Sizeof(_) => false,
     }
 }
 

@@ -9,6 +9,7 @@ pub enum TacInstr {
     MemChunk(Identifier, usize), // sets the identifier to a pointer pointing to a usize number of bytes
     Deref(Identifier, Identifier), // a = *b
     Ref(Identifier, Identifier), // a = &b
+    DerefStore(Identifier, TacVal), // *a = b
     BinOp(Identifier, TacVal, TacVal, BinOp),
     UnOp(Identifier, TacVal, UnOp),
     Copy(Identifier, TacVal),
@@ -37,7 +38,8 @@ impl TacInstr {
             | TacInstr::Jmp(..)
             | TacInstr::JmpNotZero(..)
             | TacInstr::JmpZero(..)
-            | TacInstr::Return(_) => {}
+            | TacInstr::Return(_)
+            | TacInstr::DerefStore(_, _) => {}
             TacInstr::Call(_, _, optional_ident) => result = *optional_ident,
         }
         result
@@ -58,7 +60,8 @@ impl TacInstr {
             | TacInstr::Copy(_, v)
             | TacInstr::JmpNotZero(_, v)
             | TacInstr::JmpZero(_, v)
-            | TacInstr::Return(v) => {
+            | TacInstr::Return(v)
+            | TacInstr::DerefStore(_, v) => {
                 if let TacVal::Var(ident) = v {
                     result.push(*ident);
                 }
@@ -67,7 +70,8 @@ impl TacInstr {
             TacInstr::Label(..)
             | TacInstr::Jmp(..)
             | TacInstr::LoadArg(_, _)
-            | TacInstr::MemChunk(_, _) => {}
+            | TacInstr::MemChunk(_, _)
+            | TacInstr::Ref(_, _) => {}
 
             TacInstr::Call(_, args, _) => {
                 for arg in args {
@@ -76,7 +80,7 @@ impl TacInstr {
                     }
                 }
             }
-            TacInstr::Ref(_, ident) | TacInstr::Deref(_, ident) => {
+            TacInstr::Deref(_, ident) => {
                 result.push(*ident);
             }
         }
@@ -126,6 +130,9 @@ impl fmt::Debug for TacInstr {
             }
             TacInstr::Ref(ident1, ident2) => {
                 write!(f, "{:?} = &{:?}", ident1, ident2)
+            }
+            TacInstr::DerefStore(ident, v) => {
+                write!(f, "*{:?} = {:?}", ident, v)
             }
         }
     }

@@ -1,5 +1,8 @@
 use super::display::err_display_no_source;
-use crate::parser::{expr_parser::Expr, Program, Statement};
+use crate::parser::{
+    expr_parser::{Expr, ExprEnum},
+    Program, Statement,
+};
 
 const BUILTIN_FUNCTIONS: [&str; 3] = ["putchar", "getchar", "exit"];
 
@@ -100,26 +103,26 @@ fn check_expr_funcs(expr: &Expr, known_funcs: &Vec<FuncDecl>) {
     let mut func_to_check = None;
     let mut exprs_to_check = Vec::new();
 
-    match expr {
-        Expr::Int(_)
-        | Expr::Var(_)
-        | Expr::PostfixDec(_)
-        | Expr::PostfixInc(_)
-        | Expr::PrefixDec(_)
-        | Expr::PrefixInc(_) => {}
-        Expr::UnOp(_, inner_expr) => exprs_to_check = vec![inner_expr.as_ref()],
-        Expr::BinOp(_, expr1, expr2) => exprs_to_check = vec![expr1.as_ref(), expr2.as_ref()],
-        Expr::Ternary(expr1, expr2, expr3) => {
+    match &expr.content {
+        ExprEnum::Int(_)
+        | ExprEnum::Var(_)
+        | ExprEnum::PostfixDec(_)
+        | ExprEnum::PostfixInc(_)
+        | ExprEnum::PrefixDec(_)
+        | ExprEnum::PrefixInc(_) => {}
+        ExprEnum::UnOp(_, inner_expr) => exprs_to_check = vec![inner_expr.as_ref()],
+        ExprEnum::BinOp(_, expr1, expr2) => exprs_to_check = vec![expr1.as_ref(), expr2.as_ref()],
+        ExprEnum::Ternary(expr1, expr2, expr3) => {
             exprs_to_check = vec![expr1.as_ref(), expr2.as_ref(), expr3.as_ref()]
         }
-        Expr::FunctionCall(func_name, exprs) => {
+        ExprEnum::FunctionCall(func_name, exprs) => {
             exprs_to_check = exprs.iter().collect();
             func_to_check = Some(FuncDecl {
                 name: func_name.clone(),
                 num_args: exprs.len(),
             });
         }
-        Expr::Deref(inner_expr) | Expr::Ref(inner_expr) | Expr::Sizeof(inner_expr) => {
+        ExprEnum::Deref(inner_expr) | ExprEnum::Ref(inner_expr) | ExprEnum::Sizeof(inner_expr) => {
             exprs_to_check = vec![inner_expr.as_ref()]
         }
     }

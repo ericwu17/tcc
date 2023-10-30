@@ -1,7 +1,10 @@
 use std::collections::HashSet;
 
 use super::display::err_display_no_source;
-use crate::parser::{expr_parser::Expr, Program, Statement};
+use crate::parser::{
+    expr_parser::{Expr, ExprEnum},
+    Program, Statement,
+};
 
 // The check_vars function takes a program AST,
 // and verifies that there are no references to undeclared variables
@@ -63,8 +66,8 @@ fn check_stmt_vars(
         }
         Statement::For(init_expr, ctrl_expr, post_expr, body) => check_for_loop_vars(
             init_expr,
-            ctrl_expr.as_ref().unwrap_or(&Expr::Int(1)),
-            post_expr.as_ref().unwrap_or(&Expr::Int(0)),
+            ctrl_expr.as_ref().unwrap_or(&Expr::new(ExprEnum::Int(1))),
+            post_expr.as_ref().unwrap_or(&Expr::new(ExprEnum::Int(0))),
             body,
             known_var_names.clone(),
             vars_decl_local_scope,
@@ -109,22 +112,22 @@ fn check_expr_vars(expr: &Expr, known_var_names: &HashSet<String>) {
     let mut var_name_to_check = None;
     let mut exprs_to_check = Vec::new();
 
-    match expr {
-        Expr::Int(_) => {}
-        Expr::Var(var_name) => var_name_to_check = Some(var_name),
-        Expr::UnOp(_, inner_expr) => exprs_to_check = vec![inner_expr.as_ref()],
-        Expr::BinOp(_, expr1, expr2) => exprs_to_check = vec![expr1.as_ref(), expr2.as_ref()],
-        Expr::Ternary(expr1, expr2, expr3) => {
+    match &expr.content {
+        ExprEnum::Int(_) => {}
+        ExprEnum::Var(var_name) => var_name_to_check = Some(var_name),
+        ExprEnum::UnOp(_, inner_expr) => exprs_to_check = vec![inner_expr.as_ref()],
+        ExprEnum::BinOp(_, expr1, expr2) => exprs_to_check = vec![expr1.as_ref(), expr2.as_ref()],
+        ExprEnum::Ternary(expr1, expr2, expr3) => {
             exprs_to_check = vec![expr1.as_ref(), expr2.as_ref(), expr3.as_ref()]
         }
-        Expr::FunctionCall(_, exprs) => exprs_to_check = exprs.iter().collect(),
-        Expr::Deref(expr) => exprs_to_check = vec![expr],
-        Expr::Ref(expr) => exprs_to_check = vec![expr],
-        Expr::PostfixDec(var_name) => exprs_to_check = vec![var_name],
-        Expr::PostfixInc(var_name) => exprs_to_check = vec![var_name],
-        Expr::PrefixDec(var_name) => exprs_to_check = vec![var_name],
-        Expr::PrefixInc(var_name) => exprs_to_check = vec![var_name],
-        Expr::Sizeof(inner_expr) => exprs_to_check = vec![inner_expr],
+        ExprEnum::FunctionCall(_, exprs) => exprs_to_check = exprs.iter().collect(),
+        ExprEnum::Deref(expr) => exprs_to_check = vec![expr],
+        ExprEnum::Ref(expr) => exprs_to_check = vec![expr],
+        ExprEnum::PostfixDec(var_name) => exprs_to_check = vec![var_name],
+        ExprEnum::PostfixInc(var_name) => exprs_to_check = vec![var_name],
+        ExprEnum::PrefixDec(var_name) => exprs_to_check = vec![var_name],
+        ExprEnum::PrefixInc(var_name) => exprs_to_check = vec![var_name],
+        ExprEnum::Sizeof(inner_expr) => exprs_to_check = vec![inner_expr],
     }
 
     if let Some(var_name) = var_name_to_check {

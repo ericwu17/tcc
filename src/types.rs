@@ -26,6 +26,12 @@ impl fmt::Display for VarType {
     }
 }
 
+impl Default for VarType {
+    fn default() -> Self {
+        VarType::Fund(FundT::Int)
+    }
+}
+
 impl fmt::Display for FundT {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -77,7 +83,7 @@ pub enum VarSize {
 
 impl Default for VarSize {
     fn default() -> Self {
-        VarSize::Dword
+        VarSize::Quad
     }
 }
 
