@@ -2,7 +2,7 @@ int main() {
     int x = 12;
 
     int * p = &x;
-    int ** p = &p;
+    int ** pp = &p;
 
-    return **p;
+    return **pp;
 }
