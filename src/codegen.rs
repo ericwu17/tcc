@@ -7,7 +7,7 @@ pub mod register_allocator;
 pub mod unop;
 
 use crate::{
-    tac::{tac_func::TacFunc, tac_instr::TacInstr, TacVal},
+    tac::{tac_func::TacFunc, tac_instr::TacInstr, Identifier, TacVal},
     types::VarSize,
 };
 
@@ -128,8 +128,9 @@ pub enum X86Instr {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Location {
     Reg(Reg),
-    Mem(usize), // usize represents offset from rbp
-    MemAbove(usize),
+    Mem(usize),      // usize represents offset from rbp
+    MemAbove(usize), // usize represents an offset, but this will be above rbp (in the frame of previous caller)
+    MemPointed(Reg), // reg will hold a pointer pointing into memory
 }
 
 pub fn generate_x86_code(tac_funcs: &Vec<TacFunc>) -> Vec<X86Instr> {
@@ -227,12 +228,12 @@ fn gen_x86_for_tac(result: &mut Vec<X86Instr>, instr: &TacInstr, reg_alloc: &Reg
             result.push(X86Instr::Ret);
         }
         TacInstr::LoadArg(ident, arg_num) => gen_load_arg_code(result, ident, *arg_num, reg_alloc),
-        TacInstr::MemChunk(_, _) => {
-            // no code needs to be generated for a mem chunk
+        TacInstr::MemChunk(ident, _) => {
+            generate_mem_chunk_init_code(result, *ident, reg_alloc);
         }
-        TacInstr::Deref(_, _) => todo!(),
-        TacInstr::Ref(_, _) => todo!(),
-        TacInstr::DerefStore(_, _) => todo!(),
+        TacInstr::Deref(dst, ptr) => generate_deref_code(result, *dst, *ptr, reg_alloc),
+        TacInstr::Ref(ident_1, ident_2) => generate_ref_code(result, *ident_1, *ident_2, reg_alloc),
+        TacInstr::DerefStore(ptr, val) => generate_deref_store_code(result, *ptr, val, reg_alloc),
     }
 }
 
@@ -263,4 +264,111 @@ fn gen_load_val_code(
             }
         }
     }
+}
+
+fn generate_mem_chunk_init_code(
+    result: &mut Vec<X86Instr>,
+    ident: Identifier,
+    reg_alloc: &RegisterAllocator,
+) {
+    assert_eq!(ident.get_size(), VarSize::Quad); // the identifier better be a quad to be a pointer to a mem chunk.
+    let offset = reg_alloc.get_ptr_init_val(ident);
+    result.push(X86Instr::Mov {
+        dst: Location::Reg(Reg::Rdi),
+        src: Location::Reg(Reg::Rbp),
+        size: VarSize::Quad,
+    });
+    result.push(X86Instr::SubImm {
+        dst: Reg::Rdi,
+        imm: offset as i64,
+        size: VarSize::Quad,
+    });
+    result.push(X86Instr::Mov {
+        dst: reg_alloc.get_location(ident),
+        src: Location::Reg(Reg::Rdi),
+        size: VarSize::Quad,
+    });
+}
+
+fn generate_deref_code(
+    result: &mut Vec<X86Instr>,
+    dst: Identifier,
+    ptr: Identifier,
+    reg_alloc: &RegisterAllocator,
+) {
+    assert_eq!(ptr.get_size(), VarSize::Quad); // the identifier better be a quad to be a pointer to a mem chunk.
+
+    // load pointer into rdi
+    gen_load_val_code(result, &TacVal::Var(ptr), Reg::Rdi, reg_alloc);
+
+    // read memory pointed to by pointer
+    result.push(X86Instr::Mov {
+        dst: Location::Reg(Reg::Rsi),
+        src: Location::MemPointed(Reg::Rdi),
+        size: dst.get_size(),
+    });
+
+    // store value back into the memory backing of dst_ident
+    result.push(X86Instr::Mov {
+        dst: reg_alloc.get_location(dst),
+        src: Location::Reg(Reg::Rsi),
+        size: dst.get_size(),
+    });
+}
+
+fn generate_deref_store_code(
+    result: &mut Vec<X86Instr>,
+    ptr: Identifier,
+    val: &TacVal,
+    reg_alloc: &RegisterAllocator,
+) {
+    assert_eq!(ptr.get_size(), VarSize::Quad); // the identifier better be a quad to be a pointer
+
+    // load value into rdi
+    gen_load_val_code(result, &val, Reg::Rdi, reg_alloc);
+
+    // load the memory address into rsi
+    gen_load_val_code(result, &TacVal::Var(ptr), Reg::Rsi, reg_alloc);
+
+    // do the store
+    result.push(X86Instr::Mov {
+        dst: Location::MemPointed(Reg::Rsi),
+        src: Location::Reg(Reg::Rdi),
+        size: val.get_size(),
+    });
+}
+
+fn generate_ref_code(
+    result: &mut Vec<X86Instr>,
+    dst_ident: Identifier,
+    l_value_ident: Identifier,
+    reg_alloc: &RegisterAllocator,
+) {
+    // TODO: there's a bug where the "ref" will actually give a ref to a temporary instead of the original thing!
+    assert_eq!(dst_ident.get_size(), VarSize::Quad); // the identifier better be a quad to be a pointer
+
+    result.push(X86Instr::Mov {
+        dst: Location::Reg(Reg::Rdi),
+        src: Location::Reg(Reg::Rbp),
+        size: VarSize::Quad,
+    });
+
+    let offset = reg_alloc.get_location(l_value_ident);
+    match offset {
+        Location::Mem(offset) => {
+            result.push(X86Instr::SubImm {
+                dst: Reg::Rdi,
+                imm: offset as i64,
+                size: VarSize::Quad,
+            });
+        }
+        Location::Reg(_) | Location::MemAbove(_) | Location::MemPointed(_) => unreachable!(),
+    }
+
+    // store value back into the memory backing of dst_ident
+    result.push(X86Instr::Mov {
+        dst: reg_alloc.get_location(dst_ident),
+        src: Location::Reg(Reg::Rdi),
+        size: VarSize::Quad,
+    });
 }

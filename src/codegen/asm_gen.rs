@@ -12,6 +12,7 @@ fn convert_location_to_asm(location: &Location, size: VarSize) -> String {
         Location::Mem(offset) => format!("[rbp - {}]", offset),
         Location::MemAbove(offset) => format!("[rbp + {}]", offset),
         Location::Reg(r) => r.get_sized_name(size),
+        Location::MemPointed(r) => format!("[{}]", r.get_64_bit_name()),
     }
 }
 
