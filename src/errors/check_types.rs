@@ -93,7 +93,9 @@ pub fn check_stmt_types(stmt: &mut Statement, code_env: &mut CodeEnv) {
         }
         Statement::Declare(var_name, optional_expr, expected_type) => {
             if let Some(init_expr) = optional_expr {
-                if !are_assignment_compatible_types(
+                if let ExprEnum::ArrInitExpr(_) = init_expr.content {
+                    // ok
+                } else if !are_assignment_compatible_types(
                     &Some(expected_type.clone()),
                     &get_type(init_expr, code_env),
                 ) {
@@ -254,6 +256,7 @@ pub fn get_type(expr: &mut Expr, code_env: &CodeEnv) -> Option<VarType> {
             *expr = Expr::new(ExprEnum::Int(inner_type.num_bytes() as i64));
             type_ = Some(VarType::Fund(crate::types::FundT::Long));
         }
+        ExprEnum::ArrInitExpr(_) => type_ = None,
     };
     expr.type_ = type_.clone();
     return type_;
@@ -272,7 +275,8 @@ pub fn is_l_value(expr: &Expr) -> bool {
         | ExprEnum::PostfixInc(_)
         | ExprEnum::PrefixDec(_)
         | ExprEnum::PrefixInc(_)
-        | ExprEnum::Sizeof(_) => false,
+        | ExprEnum::Sizeof(_)
+        | ExprEnum::ArrInitExpr(_) => false,
     }
 }
 

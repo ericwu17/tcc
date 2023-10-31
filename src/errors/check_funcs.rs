@@ -126,6 +126,7 @@ fn check_expr_funcs(expr: &Expr, known_funcs: &Vec<FuncDecl>) {
         ExprEnum::Deref(inner_expr) | ExprEnum::Ref(inner_expr) | ExprEnum::Sizeof(inner_expr) => {
             exprs_to_check = vec![inner_expr.as_ref()]
         }
+        ExprEnum::ArrInitExpr(exprs) => exprs_to_check = exprs.iter().collect(),
     }
 
     if let Some(func) = func_to_check {

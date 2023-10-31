@@ -7,6 +7,7 @@ use crate::{
 };
 
 use super::{
+    arr_initializer_expr::generate_arr_init_expr_ast,
     expr_parser::{generate_expr_ast, BinOpPrecedenceLevel},
     token_cursor::TokenCursor,
     Statement,
@@ -33,11 +34,16 @@ pub fn parse_variable_declaration(tokens: &mut TokenCursor) -> Statement {
 
     let mut optional_expr = None;
     if tokens.peek() == Some(&Token::Op(Op::AssignmentEquals)) {
-        tokens.next();
-        optional_expr = Some(generate_expr_ast(
-            tokens,
-            BinOpPrecedenceLevel::lowest_level(),
-        ))
+        tokens.next(); // consume the '='
+        match type_ {
+            VarType::Fund(_) | VarType::Ptr(_) => {
+                optional_expr = Some(generate_expr_ast(
+                    tokens,
+                    BinOpPrecedenceLevel::lowest_level(),
+                ))
+            }
+            VarType::Arr(_, _) => optional_expr = Some(generate_arr_init_expr_ast(tokens, &type_)),
+        }
     }
     Statement::Declare(decl_identifier, optional_expr, type_)
 }

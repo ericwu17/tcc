@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt;
+pub mod array_init_expr;
 pub mod expr;
 pub mod loops;
 pub mod prefix_postfix_inc_dec;
@@ -13,6 +14,7 @@ use crate::parser::Function;
 use crate::parser::{expr_parser::Expr, Program, Statement};
 use crate::types::{VarSize, VarType};
 
+use self::array_init_expr::gen_arr_init_expr_tac;
 use self::expr::ValTarget;
 use self::tac_func::TacFunc;
 use self::{
@@ -300,22 +302,29 @@ fn generate_declaration_tac(
                 }
             };
         }
-        VarType::Arr(inner_type, num_elements) => match opt_value {
-            None => {
-                let var_map_list = &mut code_env.var_map_list;
-                let last_elem_index = var_map_list.len() - 1;
-                let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
-                let arr_ptr_identifier = get_new_temp_name(VarSize::Quad);
-                this_scopes_variable_map.insert(var_name.clone(), arr_ptr_identifier);
+        VarType::Arr(inner_type, num_elements) => {
+            let var_map_list = &mut code_env.var_map_list;
+            let last_elem_index = var_map_list.len() - 1;
+            let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
+            let arr_ptr_identifier = get_new_temp_name(VarSize::Quad);
+            this_scopes_variable_map.insert(var_name.clone(), arr_ptr_identifier);
 
-                let num_bytes = inner_type.num_bytes() * num_elements;
+            let num_bytes = inner_type.num_bytes() * num_elements;
 
-                let mut result = Vec::new();
-                result.push(TacInstr::MemChunk(arr_ptr_identifier, num_bytes));
+            let mut result = Vec::new();
+            result.push(TacInstr::MemChunk(arr_ptr_identifier, num_bytes));
 
-                result
+            if let Some(arr_init_expr) = opt_value {
+                let ptr_to_arr = get_new_temp_name(VarSize::Quad);
+                result.push(TacInstr::Copy(ptr_to_arr, TacVal::Var(arr_ptr_identifier)));
+                result.extend(gen_arr_init_expr_tac(
+                    &inner_type,
+                    arr_init_expr,
+                    ptr_to_arr,
+                    code_env,
+                ));
             }
-            Some(_) => todo!(), // array initializers will be implemented later
-        },
+            result
+        }
     }
 }

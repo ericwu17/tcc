@@ -133,6 +133,7 @@ pub fn generate_expr_tac(
             _ => unreachable!(),
         },
         ExprEnum::Sizeof(_) => unreachable!(), // sizeof should have been replaced by int literal by check_types
+        ExprEnum::ArrInitExpr(_) => unreachable!(), // ArrInitExpr should only appear in array initializations
     }
 }
 

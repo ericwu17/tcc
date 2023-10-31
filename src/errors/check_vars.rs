@@ -128,6 +128,7 @@ fn check_expr_vars(expr: &Expr, known_var_names: &HashSet<String>) {
         ExprEnum::PrefixDec(var_name) => exprs_to_check = vec![var_name],
         ExprEnum::PrefixInc(var_name) => exprs_to_check = vec![var_name],
         ExprEnum::Sizeof(inner_expr) => exprs_to_check = vec![inner_expr],
+        ExprEnum::ArrInitExpr(exprs) => exprs_to_check = exprs.iter().collect(),
     }
 
     if let Some(var_name) = var_name_to_check {

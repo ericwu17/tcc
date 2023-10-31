@@ -19,6 +19,7 @@ pub enum ExprEnum {
     PrefixDec(Box<Expr>),
     PrefixInc(Box<Expr>),
     Sizeof(Box<Expr>),
+    ArrInitExpr(Vec<Expr>),
 }
 
 #[derive(Debug, Clone)]
