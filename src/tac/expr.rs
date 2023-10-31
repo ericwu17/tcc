@@ -484,6 +484,22 @@ pub fn gen_subtraction_tac(
                 BinOp::Divide,
             ));
         }
+        (VarType::Ptr(inner_type), VarType::Fund(_)) => {
+            let ptr_size = inner_type.num_bytes();
+            let offset_number = get_new_temp_name(VarSize::Quad);
+            result.push(TacInstr::BinOp(
+                offset_number,
+                val2,
+                TacVal::Lit(ptr_size as i64, VarSize::Quad),
+                BinOp::Multiply,
+            ));
+            result.push(TacInstr::BinOp(
+                final_temp_name,
+                val1,
+                TacVal::Var(offset_number),
+                BinOp::Minus,
+            ));
+        }
 
         _ => unreachable!(),
     }
