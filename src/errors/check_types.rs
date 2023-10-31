@@ -191,8 +191,11 @@ pub fn get_type(expr: &mut Expr, code_env: &CodeEnv) -> Option<VarType> {
             }
             type_ = t1;
         }
-        ExprEnum::FunctionCall(_, _) => {
+        ExprEnum::FunctionCall(_, exprs) => {
             // we will say, for now, that function calls return a flexible type. (functions may only return fundamental types)
+            for expr in exprs {
+                get_type(expr, code_env);
+            }
             type_ = None;
         }
         ExprEnum::Deref(inner) => {
