@@ -4,7 +4,7 @@ use crate::{
 };
 
 use super::{
-    expr::{generate_expr_tac, ValTarget},
+    expr::{generate_expr_tac, get_type_size, ValTarget},
     get_new_temp_name,
     tac_instr::TacInstr,
     CodeEnv, Identifier, TacVal,
@@ -40,7 +40,10 @@ pub fn gen_arr_init_expr_tac(
                 result.extend(instrs);
             }
             _ => {
-                let (expr_instrs, tac_val) = generate_expr_tac(expr, code_env, ValTarget::Generate);
+                let size = get_type_size(arr_type).unwrap();
+                let val_tmp = get_new_temp_name(size);
+                let (expr_instrs, tac_val) =
+                    generate_expr_tac(expr, code_env, ValTarget::Ident(val_tmp));
                 result.extend(expr_instrs);
                 result.push(TacInstr::DerefStore(ptr_to_arr, tac_val));
             }
