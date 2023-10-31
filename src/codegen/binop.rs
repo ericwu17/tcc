@@ -36,6 +36,12 @@ pub fn gen_binop_code(
             }); // move dividend into eax
             result.push(X86Instr::Cdq); // converts the 32 bit quantity in eax to a sign-extended 64 bit quantity.
             result.push(X86Instr::Idiv { src: val2_reg });
+            // after idiv instruction, result is stored in eax,
+            // so it needs to be sign extended to rax.
+            result.push(X86Instr::SignExtend {
+                reg: Reg::Rax,
+                size: VarSize::Dword,
+            });
             result.push(X86Instr::Mov {
                 dst: Location::Reg(val1_reg),
                 src: Location::Reg(Reg::Rax),

@@ -1,5 +1,5 @@
 int main() {
-    char buf[20] = "hello world\n\0";
+    char buf[20] = "hello world\n";
 
     char* p = buf;
     while (*p != '\0'){

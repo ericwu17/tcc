@@ -1,6 +1,6 @@
 use crate::{
     parser::expr_parser::{BinOp, Expr},
-    types::VarType,
+    types::{FundT, VarType},
 };
 
 use super::{
@@ -51,6 +51,12 @@ pub fn get_binop_type(
                         Some(VarType::Ptr(array_inner_type.clone()))
                     }
                 }
+            }
+            (Some(VarType::Ptr(t1)), Some(VarType::Ptr(t2)))
+                if op == BinOp::Minus && t1.num_bytes() == t2.num_bytes() =>
+            {
+                // subtracting two pointers gives an integer
+                Some(VarType::Fund(FundT::Long))
             }
             (Some(t1), Some(t2)) => err_display_no_source(format!(
                 "trying to add or subtract incompatible types {} and {}",

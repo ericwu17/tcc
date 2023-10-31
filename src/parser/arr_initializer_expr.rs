@@ -71,7 +71,7 @@ pub fn generate_arr_init_expr_ast(tokens: &mut TokenCursor, expected_type: &VarT
 }
 
 pub fn generate_arr_init_expr_from_str(
-    s: String,
+    mut s: String,
     tokens: &mut TokenCursor,
     expected_type: &VarType,
 ) -> Expr {
@@ -92,6 +92,7 @@ pub fn generate_arr_init_expr_from_str(
 
     let mut exprs = Vec::new();
 
+    s.push('\0'); // append a null byte
     if s.chars().count() > max_num_elems {
         err_display("array initializer too long", tokens.get_last_ptr());
     }

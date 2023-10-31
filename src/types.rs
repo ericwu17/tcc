@@ -28,7 +28,7 @@ impl fmt::Display for VarType {
 
 impl Default for VarType {
     fn default() -> Self {
-        VarType::Fund(FundT::Int)
+        VarType::Fund(FundT::Long)
     }
 }
 

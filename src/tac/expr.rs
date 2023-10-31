@@ -175,6 +175,16 @@ fn generate_binop_tac(
                     expr_2_val,
                     final_temp_name,
                 ));
+            } else if op == BinOp::Minus {
+                let t1 = expr1.type_.clone().unwrap_or_default();
+                let t2 = expr2.type_.clone().unwrap_or_default();
+                result.extend(gen_subtraction_tac(
+                    t1,
+                    t2,
+                    expr_1_val,
+                    expr_2_val,
+                    final_temp_name,
+                ));
             } else {
                 result.push(TacInstr::BinOp(final_temp_name, expr_1_val, expr_2_val, op));
             }
@@ -447,6 +457,35 @@ fn gen_addition_tac(
         | (VarType::Ptr(_), VarType::Arr(_, _))
         | (VarType::Arr(_, _), VarType::Ptr(_))
         | (VarType::Arr(_, _), VarType::Arr(_, _)) => unreachable!(),
+    }
+    return result;
+}
+
+pub fn gen_subtraction_tac(
+    t1: VarType,
+    t2: VarType,
+    val1: TacVal,
+    val2: TacVal,
+    final_temp_name: Identifier,
+) -> Vec<TacInstr> {
+    let mut result = Vec::new();
+    match (&t1, &t2) {
+        (VarType::Fund(_), VarType::Fund(_)) => {
+            result.push(TacInstr::BinOp(final_temp_name, val1, val2, BinOp::Minus));
+        }
+        (VarType::Ptr(inner_type_1), VarType::Ptr(inner_type_2)) => {
+            assert_eq!(inner_type_1.num_bytes(), inner_type_2.num_bytes());
+            let ptr_size = inner_type_1.num_bytes();
+            result.push(TacInstr::BinOp(final_temp_name, val1, val2, BinOp::Minus));
+            result.push(TacInstr::BinOp(
+                final_temp_name,
+                TacVal::Var(final_temp_name),
+                TacVal::Lit(ptr_size as i64, VarSize::Quad),
+                BinOp::Divide,
+            ));
+        }
+
+        _ => unreachable!(),
     }
     return result;
 }
