@@ -1,3 +1,29 @@
+use crate::types::{FundT, VarType};
+
+pub struct FunctionDecl {
+    pub name: &'static str,
+    pub return_type: VarType,
+    pub num_args: usize,
+}
+
+pub const BUILTIN_FUNCTIONS: [FunctionDecl; 3] = [
+    FunctionDecl {
+        name: "putchar",
+        return_type: VarType::Fund(FundT::Int),
+        num_args: 1,
+    },
+    FunctionDecl {
+        name: "getchar",
+        return_type: VarType::Fund(FundT::Int),
+        num_args: 0,
+    },
+    FunctionDecl {
+        name: "exit",
+        return_type: VarType::Fund(FundT::Int),
+        num_args: 1,
+    },
+];
+
 pub fn generate_putchar_asm() -> String {
     let result = "
 .putchar:

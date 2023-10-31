@@ -1,10 +1,11 @@
 use super::display::err_display_no_source;
-use crate::parser::{
-    expr_parser::{Expr, ExprEnum},
-    Program, Statement,
+use crate::{
+    codegen::builtin_functions::BUILTIN_FUNCTIONS,
+    parser::{
+        expr_parser::{Expr, ExprEnum},
+        Program, Statement,
+    },
 };
-
-const BUILTIN_FUNCTIONS: [&str; 3] = ["putchar", "getchar", "exit"];
 
 #[derive(PartialEq, Eq)]
 struct FuncDecl {
@@ -129,35 +130,21 @@ fn check_expr_funcs(expr: &Expr, known_funcs: &Vec<FuncDecl>) {
 
     if let Some(func) = func_to_check {
         if !known_funcs.contains(&func) {
-            if BUILTIN_FUNCTIONS.contains(&func.name.as_str()) {
-                match func.name.as_str() {
-                    "putchar" => {
-                        if func.num_args != 1 {
-                            err_display_no_source(format!(
-                                "putchar expects exactly one argument, {} given",
-                                func.num_args
-                            ))
-                        }
+            let mut is_builtin = false;
+
+            for func_decl in BUILTIN_FUNCTIONS {
+                if func_decl.name == func.name {
+                    is_builtin = true;
+                    if func.num_args != func_decl.num_args {
+                        err_display_no_source(format!(
+                            "{} expects exactly one argument, {} given",
+                            func_decl.name, func.num_args,
+                        ))
                     }
-                    "getchar" => {
-                        if func.num_args != 0 {
-                            err_display_no_source(format!(
-                                "getchar expects exactly one argument, {} given",
-                                func.num_args
-                            ))
-                        }
-                    }
-                    "exit" => {
-                        if func.num_args != 1 {
-                            err_display_no_source(format!(
-                                "exit expects exactly one argument, {} given",
-                                func.num_args
-                            ))
-                        }
-                    }
-                    _ => {}
                 }
-            } else {
+            }
+
+            if !is_builtin {
                 err_display_no_source(format!("undefined function: {}", &func.name))
             }
         }

@@ -25,6 +25,7 @@ pub struct Program {
 pub struct Function {
     pub name: String,
     pub args: Vec<(String, VarType)>,
+    pub return_type: VarType,
     pub body: Vec<Statement>,
 }
 
@@ -57,9 +58,10 @@ pub fn generate_program_ast(tokens: Vec<(Token, SourcePtr)>) -> Program {
 fn generate_function_ast(tokens: &mut TokenCursor) -> Function {
     let function_name;
 
+    let mut return_type;
     match tokens.next() {
-        Some(&Token::Type(..)) => {
-            // ok
+        Some(&Token::Type(t)) => {
+            return_type = VarType::Fund(t);
         }
         _ => {
             err_display(
@@ -67,6 +69,10 @@ fn generate_function_ast(tokens: &mut TokenCursor) -> Function {
                 tokens.get_last_ptr(),
             );
         }
+    }
+    while tokens.peek() == Some(&Token::Star) {
+        tokens.next();
+        return_type = VarType::Ptr(Box::new(return_type));
     }
 
     if let Some(Token::Identifier { val }) = tokens.next() {
@@ -99,6 +105,7 @@ fn generate_function_ast(tokens: &mut TokenCursor) -> Function {
     Function {
         name: function_name,
         args: function_args,
+        return_type,
         body,
     }
 }

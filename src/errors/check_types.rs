@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::codegen::builtin_functions::BUILTIN_FUNCTIONS;
 use crate::parser::expr_parser::ExprEnum;
 use crate::parser::{expr_parser::Expr, Program, Statement};
 use crate::types::{FundT, VarType};
@@ -11,13 +12,30 @@ use super::display::err_display_no_source;
 pub struct CodeEnv {
     // a list of maps, one for each scope level, mapping variable names to types
     pub var_map_list: Vec<HashMap<String, VarType>>,
+    // a map of function name to the return type of the function
+    pub func_ret_type_map: HashMap<String, VarType>,
 }
 
 impl CodeEnv {
-    fn new() -> Self {
+    fn new(func_ret_type_map: HashMap<String, VarType>) -> Self {
         CodeEnv {
             var_map_list: Vec::new(),
+            func_ret_type_map,
         }
+    }
+
+    fn get_func_ret_type(&self, func_name: &String) -> VarType {
+        if let Some(t) = self.func_ret_type_map.get(func_name) {
+            return t.clone();
+        }
+        for function_decl in BUILTIN_FUNCTIONS {
+            if function_decl.name == func_name {
+                return function_decl.return_type;
+            }
+        }
+
+        // unreachble because check_funcs already checked that all functions are already defined
+        unreachable!()
     }
 }
 
@@ -32,8 +50,13 @@ fn resolve_variable_to_temp_name(name: &String, code_env: &CodeEnv) -> VarType {
 }
 
 pub fn check_types(program: &mut Program) {
+    let mut func_ret_type_map = HashMap::new();
+    for function in &program.functions {
+        func_ret_type_map.insert(function.name.clone(), function.return_type.clone());
+    }
+
     for function in &mut program.functions {
-        let mut code_env = CodeEnv::new();
+        let mut code_env = CodeEnv::new(func_ret_type_map.clone());
         let mut this_scopes_variable_map: HashMap<String, VarType> = HashMap::new();
 
         for (arg_name, arg_type) in &function.args {
@@ -62,10 +85,10 @@ pub fn check_stmt_types(stmt: &mut Statement, code_env: &mut CodeEnv) {
         Statement::Return(expr) => {
             let returned_type = get_type(expr, code_env);
             match returned_type {
-                Some(VarType::Fund(_)) | None => {}
-                _ => {
-                    err_display_no_source("return type of function must be a fundamental type");
+                Some(VarType::Arr(_, _)) => {
+                    err_display_no_source("error: trying to return array from function");
                 }
+                Some(VarType::Fund(_)) | Some(VarType::Ptr(_)) | None => {}
             }
         }
         Statement::Declare(var_name, optional_expr, expected_type) => {
@@ -191,12 +214,12 @@ pub fn get_type(expr: &mut Expr, code_env: &CodeEnv) -> Option<VarType> {
             }
             type_ = t1;
         }
-        ExprEnum::FunctionCall(_, exprs) => {
-            // we will say, for now, that function calls return a flexible type. (functions may only return fundamental types)
+        ExprEnum::FunctionCall(func_name, exprs) => {
             for expr in exprs {
                 get_type(expr, code_env);
             }
-            type_ = None;
+
+            type_ = Some(code_env.get_func_ret_type(func_name));
         }
         ExprEnum::Deref(inner) => {
             let inner_type = get_type(inner, code_env);
