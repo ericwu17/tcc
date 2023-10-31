@@ -6,7 +6,7 @@ pub struct FunctionDecl {
     pub num_args: usize,
 }
 
-pub const BUILTIN_FUNCTIONS: [FunctionDecl; 3] = [
+pub const BUILTIN_FUNCTIONS: [FunctionDecl; 4] = [
     FunctionDecl {
         name: "putchar",
         return_type: VarType::Fund(FundT::Int),
@@ -16,6 +16,11 @@ pub const BUILTIN_FUNCTIONS: [FunctionDecl; 3] = [
         name: "getchar",
         return_type: VarType::Fund(FundT::Int),
         num_args: 0,
+    },
+    FunctionDecl {
+        name: "puts",
+        return_type: VarType::Fund(FundT::Int),
+        num_args: 1,
     },
     FunctionDecl {
         name: "exit",
@@ -66,6 +71,31 @@ pub fn generate_exit_asm() -> String {
 .exit:
   mov eax, 231  ; syscall #231 for 'exit_group'
   syscall
+";
+    return result.to_owned();
+}
+
+pub fn generate_puts_asm() -> String {
+    let result = "
+.puts:
+  mov rdx, 0
+  mov r8, rdi
+.begin_puts_loop:
+  mov r9b, [r8]
+  test r9b, r9b
+  jz .end_puts_loop
+  add r8, 1
+  add rdx, 1
+  jmp .begin_puts_loop
+.end_puts_loop:
+  add rdx, 1           ; rdx is the number of bytes to write
+  mov byte [r8], 10    ; 10 is newline character code
+  mov rsi, rdi
+  mov rdi, 1           ; fd 1 for stdout
+  mov rax, 1           ; syscall 1 for write
+  syscall
+  mov byte [r8], 0     ; put the null byte back
+  ret
 ";
     return result.to_owned();
 }
