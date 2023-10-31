@@ -84,23 +84,27 @@ const fn generate_exit_asm() -> &'static str {
 const fn generate_puts_asm() -> &'static str {
     "
 .puts:
-  mov rdx, 0
-  mov r8, rdi
+  mov rdx, 0          ; rdx is the number of bytes to write
+  mov rsi, rdi        ; rsi is ptr to buffer for write syscall
 .begin_puts_loop:
-  mov r9b, [r8]
+  mov r9b, [rdi]
   test r9b, r9b
   jz .end_puts_loop
-  add r8, 1
+  add rdi, 1
   add rdx, 1
   jmp .begin_puts_loop
 .end_puts_loop:
-  add rdx, 1           ; rdx is the number of bytes to write
-  mov byte [r8], 10    ; 10 is newline character code
-  mov rsi, rdi
   mov rdi, 1           ; fd 1 for stdout
   mov rax, 1           ; syscall 1 for write
   syscall
-  mov byte [r8], 0     ; put the null byte back
+  sub rsp, 1
+  mov byte [rsp], 0x0A ; newline character
+  mov rsi, rsp
+  mov rdi, 1   ; stdout
+  mov rdx, 1   ; 1 byte
+  mov rax, 1   ; syscall 1 for 'write'
+  syscall
+  add rsp, 1
   ret
 "
 }
