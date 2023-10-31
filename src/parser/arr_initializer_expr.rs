@@ -2,7 +2,7 @@ use crate::{
     errors::display::err_display,
     parser::expr_parser::{generate_expr_ast, BinOpPrecedenceLevel},
     tokenizer::Token,
-    types::VarType,
+    types::{FundT, VarType},
 };
 
 use super::{
@@ -20,6 +20,12 @@ pub fn generate_arr_init_expr_ast(tokens: &mut TokenCursor, expected_type: &VarT
             tokens.get_last_ptr(),
         ),
     };
+
+    if let Some(Token::StringLiteral(s)) = tokens.peek() {
+        let res = generate_arr_init_expr_from_str(s.clone(), tokens, expected_type);
+        tokens.next();
+        return res;
+    }
 
     if tokens.next() != Some(&Token::OpenBrace) {
         err_display(
@@ -59,6 +65,39 @@ pub fn generate_arr_init_expr_ast(tokens: &mut TokenCursor, expected_type: &VarT
             ),
             tokens.get_last_ptr(),
         )
+    }
+
+    Expr::new(ExprEnum::ArrInitExpr(exprs))
+}
+
+pub fn generate_arr_init_expr_from_str(
+    s: String,
+    tokens: &mut TokenCursor,
+    expected_type: &VarType,
+) -> Expr {
+    let (max_num_elems, inner_expected_type) = match expected_type {
+        VarType::Arr(a, b) => (*b, a),
+        VarType::Fund(_) | VarType::Ptr(_) => err_display(
+            "array initializer expression nested too deep",
+            tokens.get_last_ptr(),
+        ),
+    };
+
+    if inner_expected_type.as_ref() != &VarType::Fund(FundT::Char) {
+        err_display(
+            "string array initializer may only be used for variables of type char",
+            tokens.get_last_ptr(),
+        );
+    }
+
+    let mut exprs = Vec::new();
+
+    if s.chars().count() > max_num_elems {
+        err_display("array initializer too long", tokens.get_last_ptr());
+    }
+
+    for char in s.chars() {
+        exprs.push(Expr::new(ExprEnum::Int(char as i64)));
     }
 
     Expr::new(ExprEnum::ArrInitExpr(exprs))

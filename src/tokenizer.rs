@@ -2,7 +2,7 @@ pub mod operator;
 pub mod source_cursor;
 
 use self::source_cursor::{SourceCodeCursor, SourcePtr};
-use crate::errors::display::err_display;
+use crate::errors::display::{err_display, err_display_no_source};
 use crate::parser::expr_parser::{BinOp, BinOpPrecedenceLevel, UnOp};
 use crate::types::FundT;
 use operator::{char_to_operator, chars_to_operator, Op};
@@ -19,6 +19,7 @@ pub enum Token {
     Ampersand,
     IntLit { val: String },
     Identifier { val: String },
+    StringLiteral(String),
     Return,
     Type(FundT),
     Semicolon,
@@ -154,6 +155,9 @@ pub fn get_tokens(source_code_contents: String) -> Vec<(Token, SourcePtr)> {
         } else if next_char.is_ascii_whitespace() {
             // ignore all whitespace
             cursor.next();
+        } else if next_char == '"' {
+            let pos = cursor.get_last_pos();
+            tokens.push((build_string_literal(&mut cursor), pos));
         } else if next_char.is_digit(10) {
             // handle an integer literal
             let mut val = String::new();
@@ -252,4 +256,40 @@ fn convert_str_to_char_int(val: String, pos: SourcePtr) -> String {
 
         _ => err_display(format!("invalid char literal: '{}'", val), pos),
     }
+}
+
+fn build_string_literal(cursor: &mut SourceCodeCursor) -> Token {
+    cursor.next(); // consume the opening '"'
+    let mut res = String::new();
+
+    loop {
+        let char = cursor.next();
+        match char {
+            Some(c) => {
+                if *c == '"' {
+                    break;
+                }
+                if *c == '\\' {
+                    match cursor.next() {
+                        Some('t') => res.push('\t'),
+                        Some('n') => res.push('\n'),
+                        Some('\\') => res.push('\\'),
+                        Some('0') => res.push('\0'),
+                        Some('\'') => res.push('\''),
+                        val => err_display_no_source(format!(
+                            "unrecognized character escape sequence: '{:?}'",
+                            val
+                        )),
+                    }
+                } else {
+                    res.push(*c);
+                }
+            }
+            None => {
+                panic!()
+            }
+        }
+    }
+
+    Token::StringLiteral(res)
 }
