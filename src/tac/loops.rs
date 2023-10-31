@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{
-    parser::{expr_parser::Expr, Statement},
-    tac::Identifier,
-};
+use crate::parser::{expr_parser::Expr, Statement};
 
 use super::{
     expr::{generate_expr_tac, ValTarget},
@@ -73,7 +70,7 @@ pub fn gen_for_loop_tac(
     code_env.loop_label_begin = Some(before_post_expr_label.clone());
 
     let mut result = Vec::new();
-    let header_var_map: HashMap<String, Identifier> = HashMap::new();
+    code_env.var_map_list.push(HashMap::new()); // push header var map
     match initial_expr {
         Statement::Declare(var_name, optional_expr, t) => {
             let instrs = generate_declaration_tac(var_name, optional_expr, t, code_env);
@@ -86,7 +83,7 @@ pub fn gen_for_loop_tac(
         Statement::Empty => {}
         _ => unreachable!(),
     }
-    code_env.var_map_list.push(header_var_map);
+
     result.push(TacInstr::Label(start_loop_label.clone()));
 
     if let Some(control_expr) = control_expr {
