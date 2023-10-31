@@ -9,17 +9,18 @@ optimized.
 Implemented features include:
 
 - variable declarations and assignments of type `long`, `int`, `short`, and `char`
+- most binary operators such as +, -, *, /, %, &&, ||, ==, ...
 - for and while loops, if statements
-- stdout and stdin using the `putchar()` and `getchar()` functions
 - function definitions and function calls
+- pointers, arrays, and static strings
+- stdout and stdin using the `putchar()`, `puts()` and `getchar()` functions
 
 Future plans include:
 
-- pointers, arrays, and static strings (so that `puts()` may be used instead of repeated `putchar()` calls)
+- more efficient code using techniques such as register allocation, dead code elimination, loop optimizations...
 - C structs
 - `malloc()` and `free()` (I might want to implement these in C code, so this might involve making my own subset of the C standard library)
 - floats and doubles!
-- more efficient code using techniques such as register allocation, dead code elimination, loop optimizations...
 
 The asm output is generated in the file `out.asm` which is ignored by git.
 
