@@ -2,12 +2,12 @@ use std::collections::HashMap;
 
 use crate::{
     parser::{expr_parser::Expr, Statement},
-    tac::{get_new_temp_name, Identifier},
+    tac::Identifier,
 };
 
 use super::{
     expr::{generate_expr_tac, ValTarget},
-    generate_statement_tac, get_new_label_number, CodeEnv, TacInstr,
+    generate_declaration_tac, generate_statement_tac, get_new_label_number, CodeEnv, TacInstr,
 };
 
 pub fn generate_continue_tac(code_env: &CodeEnv) -> Vec<TacInstr> {
@@ -73,15 +73,11 @@ pub fn gen_for_loop_tac(
     code_env.loop_label_begin = Some(before_post_expr_label.clone());
 
     let mut result = Vec::new();
-    let mut header_var_map: HashMap<String, Identifier> = HashMap::new();
+    let header_var_map: HashMap<String, Identifier> = HashMap::new();
     match initial_expr {
         Statement::Declare(var_name, optional_expr, t) => {
-            let var_temp_loc = get_new_temp_name(t.to_size().unwrap());
-            header_var_map.insert(var_name.clone(), var_temp_loc);
-            if let Some(expr) = optional_expr {
-                let (instrs, _) = generate_expr_tac(expr, code_env, ValTarget::Ident(var_temp_loc));
-                result.extend(instrs);
-            }
+            let instrs = generate_declaration_tac(var_name, optional_expr, t, code_env);
+            result.extend(instrs);
         }
         Statement::Expr(expr) => {
             let (instrs, _) = generate_expr_tac(expr, code_env, ValTarget::None);

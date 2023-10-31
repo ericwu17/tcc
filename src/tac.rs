@@ -196,60 +196,10 @@ fn generate_statement_tac(statement: &Statement, code_env: &mut CodeEnv) -> Vec<
             }
             result
         }
-        Statement::Declare(var_name, opt_value, t) => match t {
-            VarType::Fund(_) | VarType::Ptr(_) => {
-                let var_map_list = &mut code_env.var_map_list;
-                let last_elem_index = var_map_list.len() - 1;
-                let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
-                if this_scopes_variable_map.get(var_name).is_some() {
-                    panic!(
-                        "doubly declared variable (should have been caught by check_vars): {}",
-                        var_name
-                    );
-                }
-                let var_temp_loc = get_new_temp_name(t.to_size().unwrap());
+        Statement::Declare(var_name, opt_value, t) => {
+            generate_declaration_tac(var_name, opt_value, t, code_env)
+        }
 
-                match opt_value {
-                    Some(expr) => {
-                        let (result, _) =
-                            generate_expr_tac(expr, code_env, ValTarget::Ident(var_temp_loc));
-
-                        let var_map_list = &mut code_env.var_map_list;
-                        let last_elem_index = var_map_list.len() - 1;
-                        let this_scopes_variable_map =
-                            var_map_list.get_mut(last_elem_index).unwrap();
-                        this_scopes_variable_map.insert(var_name.clone(), var_temp_loc);
-
-                        return result;
-                    }
-                    None => {
-                        let var_map_list = &mut code_env.var_map_list;
-                        let last_elem_index = var_map_list.len() - 1;
-                        let this_scopes_variable_map =
-                            var_map_list.get_mut(last_elem_index).unwrap();
-                        this_scopes_variable_map.insert(var_name.clone(), var_temp_loc);
-                        return Vec::new();
-                    }
-                };
-            }
-            VarType::Arr(inner_type, num_elements) => match opt_value {
-                None => {
-                    let var_map_list = &mut code_env.var_map_list;
-                    let last_elem_index = var_map_list.len() - 1;
-                    let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
-                    let arr_ptr_identifier = get_new_temp_name(VarSize::Quad);
-                    this_scopes_variable_map.insert(var_name.clone(), arr_ptr_identifier);
-
-                    let num_bytes = inner_type.num_bytes() * num_elements;
-
-                    let mut result = Vec::new();
-                    result.push(TacInstr::MemChunk(arr_ptr_identifier, num_bytes));
-
-                    result
-                }
-                Some(_) => todo!(), // array initializers will be implemented later
-            },
-        },
         Statement::Expr(expr) => {
             let (result, _) = generate_expr_tac(expr, code_env, ValTarget::None);
             result
@@ -308,4 +258,64 @@ fn generate_if_statement_tac(
     result.push(TacInstr::Label(label_end));
 
     result
+}
+
+fn generate_declaration_tac(
+    var_name: &String,
+    opt_value: &Option<Expr>,
+    t: &VarType,
+    code_env: &mut CodeEnv,
+) -> Vec<TacInstr> {
+    match t {
+        VarType::Fund(_) | VarType::Ptr(_) => {
+            let var_map_list = &mut code_env.var_map_list;
+            let last_elem_index = var_map_list.len() - 1;
+            let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
+            if this_scopes_variable_map.get(var_name).is_some() {
+                panic!(
+                    "doubly declared variable (should have been caught by check_vars): {}",
+                    var_name
+                );
+            }
+            let var_temp_loc = get_new_temp_name(t.to_size().unwrap());
+
+            match opt_value {
+                Some(expr) => {
+                    let (result, _) =
+                        generate_expr_tac(expr, code_env, ValTarget::Ident(var_temp_loc));
+
+                    let var_map_list = &mut code_env.var_map_list;
+                    let last_elem_index = var_map_list.len() - 1;
+                    let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
+                    this_scopes_variable_map.insert(var_name.clone(), var_temp_loc);
+
+                    return result;
+                }
+                None => {
+                    let var_map_list = &mut code_env.var_map_list;
+                    let last_elem_index = var_map_list.len() - 1;
+                    let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
+                    this_scopes_variable_map.insert(var_name.clone(), var_temp_loc);
+                    return Vec::new();
+                }
+            };
+        }
+        VarType::Arr(inner_type, num_elements) => match opt_value {
+            None => {
+                let var_map_list = &mut code_env.var_map_list;
+                let last_elem_index = var_map_list.len() - 1;
+                let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
+                let arr_ptr_identifier = get_new_temp_name(VarSize::Quad);
+                this_scopes_variable_map.insert(var_name.clone(), arr_ptr_identifier);
+
+                let num_bytes = inner_type.num_bytes() * num_elements;
+
+                let mut result = Vec::new();
+                result.push(TacInstr::MemChunk(arr_ptr_identifier, num_bytes));
+
+                result
+            }
+            Some(_) => todo!(), // array initializers will be implemented later
+        },
+    }
 }
