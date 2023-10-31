@@ -93,12 +93,20 @@ pub fn generate_arr_init_expr_from_str(
     let mut exprs = Vec::new();
 
     s.push('\0'); // append a null byte
-    if s.chars().count() > max_num_elems {
-        err_display("array initializer too long", tokens.get_last_ptr());
+
+    for b in s.as_bytes() {
+        exprs.push(Expr::new(ExprEnum::Int(*b as i64)));
     }
 
-    for char in s.chars() {
-        exprs.push(Expr::new(ExprEnum::Int(char as i64)));
+    if exprs.len() > max_num_elems {
+        err_display(
+            format!(
+                "array initializer too long  (max {}, found {})",
+                max_num_elems,
+                exprs.len()
+            ),
+            tokens.get_last_ptr(),
+        );
     }
 
     Expr::new(ExprEnum::ArrInitExpr(exprs))
