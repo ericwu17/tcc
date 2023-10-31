@@ -2,12 +2,7 @@ use std::collections::HashSet;
 
 use crate::types::VarSize;
 
-use super::{
-    builtin_functions::{
-        generate_exit_asm, generate_getchar_asm, generate_putchar_asm, generate_puts_asm,
-    },
-    Location, X86Instr,
-};
+use super::{builtin_functions::BUILTIN_FUNCTIONS, Location, X86Instr};
 
 fn convert_location_to_asm(location: &Location, size: VarSize) -> String {
     match location {
@@ -110,16 +105,11 @@ pub fn generate_program_asm(instrs: &Vec<X86Instr>) -> String {
         result.push('\n');
     }
 
-    if called_functions.contains(&"putchar".to_owned()) {
-        result.push_str(&generate_putchar_asm());
+    for func_decl in BUILTIN_FUNCTIONS {
+        if called_functions.contains(&func_decl.name.to_owned()) {
+            result.push_str(func_decl.asm_code);
+        }
     }
-    if called_functions.contains(&"getchar".to_owned()) {
-        result.push_str(&generate_getchar_asm());
-    }
-    if called_functions.contains(&"puts".to_owned()) {
-        result.push_str(&generate_puts_asm());
-    }
-    result.push_str(&generate_exit_asm());
 
     result
 }

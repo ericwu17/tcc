@@ -4,33 +4,44 @@ pub struct FunctionDecl {
     pub name: &'static str,
     pub return_type: VarType,
     pub num_args: usize,
+    pub asm_code: &'static str,
 }
 
-pub const BUILTIN_FUNCTIONS: [FunctionDecl; 4] = [
+pub const BUILTIN_FUNCTIONS: [FunctionDecl; 5] = [
     FunctionDecl {
         name: "putchar",
         return_type: VarType::Fund(FundT::Int),
         num_args: 1,
+        asm_code: generate_putchar_asm(),
     },
     FunctionDecl {
         name: "getchar",
         return_type: VarType::Fund(FundT::Int),
         num_args: 0,
+        asm_code: generate_getchar_asm(),
     },
     FunctionDecl {
         name: "puts",
         return_type: VarType::Fund(FundT::Int),
         num_args: 1,
+        asm_code: generate_puts_asm(),
+    },
+    FunctionDecl {
+        name: "strlen",
+        return_type: VarType::Fund(FundT::Int),
+        num_args: 1,
+        asm_code: generate_strlen_asm(),
     },
     FunctionDecl {
         name: "exit",
         return_type: VarType::Fund(FundT::Int),
         num_args: 1,
+        asm_code: generate_exit_asm(),
     },
 ];
 
-pub fn generate_putchar_asm() -> String {
-    let result = "
+const fn generate_putchar_asm() -> &'static str {
+    "
 .putchar:
   sub rsp, 1
   mov [rsp], dil
@@ -41,13 +52,11 @@ pub fn generate_putchar_asm() -> String {
   syscall
   add rsp, 1
   ret
-";
-
-    return result.to_owned();
+"
 }
 
-pub fn generate_getchar_asm() -> String {
-    let result = "
+const fn generate_getchar_asm() -> &'static str {
+    "
 .getchar:
   sub rsp, 4
   mov rsi, rsp ; a ptr to 'buf'
@@ -61,22 +70,19 @@ pub fn generate_getchar_asm() -> String {
   cmovz eax, r10d  ; if at EOF, return -1.
   add rsp, 4
   ret
-";
-
-    return result.to_owned();
+"
 }
 
-pub fn generate_exit_asm() -> String {
-    let result = "
+const fn generate_exit_asm() -> &'static str {
+    "
 .exit:
   mov eax, 231  ; syscall #231 for 'exit_group'
   syscall
-";
-    return result.to_owned();
+"
 }
 
-pub fn generate_puts_asm() -> String {
-    let result = "
+const fn generate_puts_asm() -> &'static str {
+    "
 .puts:
   mov rdx, 0
   mov r8, rdi
@@ -96,6 +102,21 @@ pub fn generate_puts_asm() -> String {
   syscall
   mov byte [r8], 0     ; put the null byte back
   ret
-";
-    return result.to_owned();
+"
+}
+
+const fn generate_strlen_asm() -> &'static str {
+    "
+.strlen:
+  mov rax, 0
+.begin_strlen_loop:
+  mov r9b, [rdi]
+  test r9b, r9b
+  jz .end_strlen_loop
+  add rax, 1
+  add rdi, 1
+  jmp .begin_strlen_loop
+.end_strlen_loop:
+  ret
+"
 }
