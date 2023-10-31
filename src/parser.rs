@@ -3,6 +3,7 @@ pub mod expr_parser;
 pub mod factor_parser;
 pub mod for_loop_parser;
 pub mod function_arg_decl;
+pub mod global_strings;
 pub mod token_cursor;
 pub mod types_parser;
 

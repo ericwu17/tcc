@@ -7,6 +7,7 @@ pub mod register_allocator;
 pub mod unop;
 
 use crate::{
+    parser::global_strings::get_string_label,
     tac::{tac_func::TacFunc, tac_instr::TacInstr, Identifier, TacVal},
     types::VarSize,
 };
@@ -123,6 +124,10 @@ pub enum X86Instr {
     },
     Ret,
     StartLabel,
+    MovStaticLabel {
+        reg: Reg,
+        label_name: String,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -234,6 +239,18 @@ fn gen_x86_for_tac(result: &mut Vec<X86Instr>, instr: &TacInstr, reg_alloc: &Reg
         TacInstr::Deref(dst, ptr) => generate_deref_code(result, *dst, *ptr, reg_alloc),
         TacInstr::Ref(ident_1, ident_2) => generate_ref_code(result, *ident_1, *ident_2, reg_alloc),
         TacInstr::DerefStore(ptr, val) => generate_deref_store_code(result, *ptr, val, reg_alloc),
+        TacInstr::StaticStrPtr(dst_ident, static_str_val) => {
+            assert_eq!(dst_ident.get_size(), VarSize::Quad);
+            result.push(X86Instr::MovStaticLabel {
+                reg: Reg::Rdi,
+                label_name: get_string_label(static_str_val),
+            });
+            result.push(X86Instr::Mov {
+                dst: reg_alloc.get_location(*dst_ident),
+                src: Location::Reg(Reg::Rdi),
+                size: dst_ident.get_size(),
+            });
+        }
     }
 }
 

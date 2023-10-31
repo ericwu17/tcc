@@ -110,7 +110,8 @@ fn check_expr_funcs(expr: &Expr, known_funcs: &Vec<FuncDecl>) {
         | ExprEnum::PostfixDec(_)
         | ExprEnum::PostfixInc(_)
         | ExprEnum::PrefixDec(_)
-        | ExprEnum::PrefixInc(_) => {}
+        | ExprEnum::PrefixInc(_)
+        | ExprEnum::StaticStrPtr(_) => {}
         ExprEnum::UnOp(_, inner_expr) => exprs_to_check = vec![inner_expr.as_ref()],
         ExprEnum::BinOp(_, expr1, expr2) => exprs_to_check = vec![expr1.as_ref(), expr2.as_ref()],
         ExprEnum::Ternary(expr1, expr2, expr3) => {

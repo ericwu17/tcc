@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::types::VarSize;
+use crate::{parser::global_strings::generate_global_strings_asm, types::VarSize};
 
 use super::{builtin_functions::BUILTIN_FUNCTIONS, Location, X86Instr};
 
@@ -80,11 +80,16 @@ pub fn convert_to_asm(instr: &X86Instr) -> String {
         ),
         X86Instr::Ret => "ret".to_owned(),
         X86Instr::StartLabel => "_start:".to_owned(),
+        X86Instr::MovStaticLabel { reg, label_name } => {
+            format!("mov {}, {}", reg.get_64_bit_name(), label_name)
+        }
     }
 }
 
 pub fn generate_program_asm(instrs: &Vec<X86Instr>) -> String {
     let mut result = String::new();
+
+    result.push_str(&generate_global_strings_asm());
 
     let indent = "  ";
 

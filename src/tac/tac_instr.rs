@@ -19,6 +19,7 @@ pub enum TacInstr {
     JmpNotZero(String, TacVal),
     Call(String, Vec<TacVal>, Option<Identifier>),
     LoadArg(Identifier, usize), //loads an argument of the function, emitted at the beginning of the function body
+    StaticStrPtr(Identifier, String), // set identifier to a static string pointing to data specified by the string.
 }
 
 impl TacInstr {
@@ -31,7 +32,8 @@ impl TacInstr {
             | TacInstr::Copy(ident, _)
             | TacInstr::Deref(ident, _)
             | TacInstr::Ref(ident, _)
-            | TacInstr::MemChunk(ident, _) => {
+            | TacInstr::MemChunk(ident, _)
+            | TacInstr::StaticStrPtr(ident, _) => {
                 result = Some(*ident);
             }
             TacInstr::Label(..)
@@ -71,7 +73,8 @@ impl TacInstr {
             | TacInstr::Jmp(..)
             | TacInstr::LoadArg(_, _)
             | TacInstr::MemChunk(_, _)
-            | TacInstr::Ref(_, _) => {}
+            | TacInstr::Ref(_, _)
+            | TacInstr::StaticStrPtr(_, _) => {}
 
             TacInstr::Call(_, args, _) => {
                 for arg in args {
@@ -133,6 +136,9 @@ impl fmt::Debug for TacInstr {
             }
             TacInstr::DerefStore(ident, v) => {
                 write!(f, "*{:?} = {:?}", ident, v)
+            }
+            TacInstr::StaticStrPtr(ident, data) => {
+                write!(f, "{:?} points to static string `{}`", ident, data)
             }
         }
     }

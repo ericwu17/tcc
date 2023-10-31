@@ -257,6 +257,9 @@ pub fn get_type(expr: &mut Expr, code_env: &CodeEnv) -> Option<VarType> {
             type_ = Some(VarType::Fund(crate::types::FundT::Long));
         }
         ExprEnum::ArrInitExpr(_) => type_ = None,
+        ExprEnum::StaticStrPtr(_) => {
+            type_ = Some(VarType::Ptr(Box::new(VarType::Fund(FundT::Char))));
+        }
     };
     expr.type_ = type_.clone();
     return type_;
@@ -276,7 +279,8 @@ pub fn is_l_value(expr: &Expr) -> bool {
         | ExprEnum::PrefixDec(_)
         | ExprEnum::PrefixInc(_)
         | ExprEnum::Sizeof(_)
-        | ExprEnum::ArrInitExpr(_) => false,
+        | ExprEnum::ArrInitExpr(_)
+        | ExprEnum::StaticStrPtr(_) => false,
     }
 }
 

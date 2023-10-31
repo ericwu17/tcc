@@ -132,6 +132,23 @@ pub fn generate_expr_tac(
             }
             _ => unreachable!(),
         },
+        ExprEnum::StaticStrPtr(val) => match target {
+            ValTarget::None => {
+                return (vec![], TacVal::Lit(0, VarSize::Quad));
+            }
+            ValTarget::Generate | ValTarget::Ident(_) => {
+                let final_temp_name = if let ValTarget::Ident(ident) = target {
+                    ident
+                } else {
+                    get_new_temp_name(VarSize::Quad)
+                };
+
+                return (
+                    vec![TacInstr::StaticStrPtr(final_temp_name, val.clone())],
+                    TacVal::Var(final_temp_name),
+                );
+            }
+        },
         ExprEnum::Sizeof(_) => unreachable!(), // sizeof should have been replaced by int literal by check_types
         ExprEnum::ArrInitExpr(_) => unreachable!(), // ArrInitExpr should only appear in array initializations
     }

@@ -5,6 +5,7 @@ use crate::{
 
 use super::{
     expr_parser::{generate_expr_ast, BinOp, BinOpPrecedenceLevel, Expr, ExprEnum},
+    global_strings::add_static_string,
     token_cursor::TokenCursor,
 };
 
@@ -59,6 +60,12 @@ pub fn generate_factor_ast(tokens: &mut TokenCursor) -> Expr {
             }
 
             return attach_postfix_ops(tokens, expr);
+        }
+        Some(Token::StringLiteral(val)) => {
+            let val = val.clone();
+            tokens.next();
+            add_static_string(val.clone());
+            return Expr::new(ExprEnum::StaticStrPtr(val.clone()));
         }
         Some(Token::Sizeof) => {
             tokens.next(); // consume the "sizeof"

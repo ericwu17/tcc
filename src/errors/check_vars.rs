@@ -113,7 +113,7 @@ fn check_expr_vars(expr: &Expr, known_var_names: &HashSet<String>) {
     let mut exprs_to_check = Vec::new();
 
     match &expr.content {
-        ExprEnum::Int(_) => {}
+        ExprEnum::Int(_) | ExprEnum::StaticStrPtr(_) => {}
         ExprEnum::Var(var_name) => var_name_to_check = Some(var_name),
         ExprEnum::UnOp(_, inner_expr) => exprs_to_check = vec![inner_expr.as_ref()],
         ExprEnum::BinOp(_, expr1, expr2) => exprs_to_check = vec![expr1.as_ref(), expr2.as_ref()],
