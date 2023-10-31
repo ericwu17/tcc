@@ -13,7 +13,9 @@ use std::process::Command;
 
 use clap::Parser;
 use codegen::generate_x86_code;
+use errors::check_funcs::check_funcs;
 use errors::check_types::check_types;
+use errors::check_vars::check_vars;
 use parser::generate_program_ast;
 use tac::generate_tac;
 use tokenizer::get_tokens;
@@ -53,6 +55,8 @@ fn main() {
         dbg!(&tokens);
     }
     let mut program_ast = generate_program_ast(tokens);
+    check_funcs(&program_ast);
+    check_vars(&program_ast);
     check_types(&mut program_ast);
     if cli.debug {
         dbg!(&program_ast);
