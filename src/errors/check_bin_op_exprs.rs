@@ -4,7 +4,9 @@ use crate::{
 };
 
 use super::{
-    check_types::{are_interchangable_types, get_type, is_l_value, CodeEnv},
+    check_types::{
+        are_assignment_compatible_types, are_interchangable_types, get_type, is_l_value, CodeEnv,
+    },
     display::err_display_no_source,
 };
 
@@ -74,7 +76,7 @@ pub fn get_binop_type(
             if !is_l_value(expr1) {
                 err_display_no_source("cannot assign to a non l value");
             }
-            if !are_interchangable_types(&t1, &t2) {
+            if !are_assignment_compatible_types(&t1, &t2) {
                 err_display_no_source("wrong types in assignment.")
             }
             return t1;

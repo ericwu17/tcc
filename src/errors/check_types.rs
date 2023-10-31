@@ -70,9 +70,9 @@ pub fn check_stmt_types(stmt: &mut Statement, code_env: &mut CodeEnv) {
         }
         Statement::Declare(var_name, optional_expr, expected_type) => {
             if let Some(init_expr) = optional_expr {
-                if !are_interchangable_types(
-                    &get_type(init_expr, code_env),
+                if !are_assignment_compatible_types(
                     &Some(expected_type.clone()),
+                    &get_type(init_expr, code_env),
                 ) {
                     err_display_no_source(format!(
                         "incompatible types in declaration of {}",
@@ -268,6 +268,29 @@ pub fn are_interchangable_types(t1: &Option<VarType>, t2: &Option<VarType>) -> b
             (VarType::Arr(_, _), VarType::Fund(_)) => false,
             (VarType::Arr(_, _), VarType::Ptr(_)) => false,
             (VarType::Arr(t1, l1), VarType::Arr(t2, l2)) => t1 == t2 && l1 == l2,
+        },
+    }
+}
+
+pub fn are_assignment_compatible_types(t1: &Option<VarType>, t2: &Option<VarType>) -> bool {
+    // trying to assign t1 to t2
+    match (t1, t2) {
+        (None, None) => true,
+        (None, Some(t)) | (Some(t), None) => match t {
+            VarType::Fund(_) => true,
+            VarType::Ptr(_) => false,
+            VarType::Arr(_, _) => false,
+        },
+        (Some(inner_t1), Some(inner_t2)) => match (inner_t1, inner_t2) {
+            (VarType::Fund(_), VarType::Fund(_))
+            | (VarType::Ptr(_), VarType::Ptr(_))
+            | (VarType::Ptr(_), VarType::Arr(_, _)) => true,
+            (VarType::Fund(_), VarType::Ptr(_))
+            | (VarType::Fund(_), VarType::Arr(_, _))
+            | (VarType::Ptr(_), VarType::Fund(_))
+            | (VarType::Arr(_, _), VarType::Fund(_))
+            | (VarType::Arr(_, _), VarType::Ptr(_)) => false,
+            (VarType::Arr(_, _), VarType::Arr(_, _)) => false,
         },
     }
 }

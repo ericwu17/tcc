@@ -14,12 +14,12 @@ impl TokenCursor {
     pub fn peek(&self) -> Option<&Token> {
         self.contents.get(self.index).map(|(token, _)| token)
     }
-    pub fn peek_nth(&self, n: usize) -> Option<&Token> {
-        // peek_nth(1) is equivalent to peek()
-        self.contents
-            .get(self.index + n - 1)
-            .map(|(token, _)| token)
-    }
+    // pub fn peek_nth(&self, n: usize) -> Option<&Token> {
+    //     // peek_nth(1) is equivalent to peek()
+    //     self.contents
+    //         .get(self.index + n - 1)
+    //         .map(|(token, _)| token)
+    // }
 
     // pub fn peek_ptr(&self) -> Option<&SourcePtr> {
     //     self.contents.get(self.index).map(|(_, src_ptr)| src_ptr)

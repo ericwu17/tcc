@@ -344,7 +344,6 @@ fn generate_ref_code(
     l_value_ident: Identifier,
     reg_alloc: &RegisterAllocator,
 ) {
-    // TODO: there's a bug where the "ref" will actually give a ref to a temporary instead of the original thing!
     assert_eq!(dst_ident.get_size(), VarSize::Quad); // the identifier better be a quad to be a pointer
 
     result.push(X86Instr::Mov {
