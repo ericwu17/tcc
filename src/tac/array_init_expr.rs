@@ -68,6 +68,27 @@ pub fn gen_opt_arr_init_expr_tac(
     arr_init_expr: &Expr,
     ptr_to_arr: Identifier,
 ) -> Option<Vec<TacInstr>> {
+    if let Some(bytes) = gen_arr_init_expr_bytes(arr_type, num_elements, arr_init_expr) {
+        let mut result = Vec::new();
+
+        let element_size = arr_type.num_bytes();
+        result.push(TacInstr::MemChunk(
+            ptr_to_arr,
+            num_elements * element_size,
+            Some(bytes),
+        ));
+
+        Some(result)
+    } else {
+        None
+    }
+}
+
+fn gen_arr_init_expr_bytes(
+    arr_type: &VarType,
+    num_elements: usize,
+    arr_init_expr: &Expr,
+) -> Option<Vec<u8>> {
     let exprs = match &arr_init_expr.content {
         ExprEnum::ArrInitExpr(x) => x,
         _ => unreachable!(),
@@ -85,19 +106,20 @@ pub fn gen_opt_arr_init_expr_tac(
                 8 => bytes.extend((value as i64).to_le_bytes()),
                 _ => return None,
             },
+            ExprEnum::ArrInitExpr(_) => {
+                let (inner_type, inner_num_elements) = match arr_type {
+                    VarType::Arr(a, b) => (a, b),
+                    _ => unreachable!(),
+                };
+
+                let inner_bytes = gen_arr_init_expr_bytes(inner_type, *inner_num_elements, expr)?;
+                bytes.extend(inner_bytes);
+            }
             _ => return None,
         }
     }
     while bytes.len() < num_elements * element_size {
         bytes.push(0);
     }
-    let mut result = Vec::new();
-
-    result.push(TacInstr::MemChunk(
-        ptr_to_arr,
-        num_elements * element_size,
-        Some(bytes),
-    ));
-
-    Some(result)
+    Some(bytes)
 }

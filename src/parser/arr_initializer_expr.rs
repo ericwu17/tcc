@@ -35,13 +35,16 @@ pub fn generate_arr_init_expr_ast(tokens: &mut TokenCursor, expected_type: &VarT
     }
 
     while tokens.peek() != Some(&Token::CloseBrace) {
-        if tokens.peek() == Some(&Token::OpenBrace) {
-            exprs.push(generate_arr_init_expr_ast(tokens, inner_expected_type));
-        } else {
-            exprs.push(generate_expr_ast(
-                tokens,
-                BinOpPrecedenceLevel::lowest_level(),
-            ));
+        match tokens.peek() {
+            Some(Token::OpenBrace) | Some(Token::StringLiteral(_)) => {
+                exprs.push(generate_arr_init_expr_ast(tokens, inner_expected_type));
+            }
+            _ => {
+                exprs.push(generate_expr_ast(
+                    tokens,
+                    BinOpPrecedenceLevel::lowest_level(),
+                ));
+            }
         }
 
         if tokens.peek() == Some(&Token::Comma) {
