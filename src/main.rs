@@ -16,6 +16,7 @@ use codegen::generate_x86_code;
 use errors::check_funcs::check_funcs;
 use errors::check_types::check_types;
 use errors::check_vars::check_vars;
+use parser::const_eval::eval_program_const_exprs;
 use parser::generate_program_ast;
 use tac::generate_tac;
 use tokenizer::get_tokens;
@@ -58,6 +59,7 @@ fn main() {
     check_funcs(&program_ast);
     check_vars(&program_ast);
     check_types(&mut program_ast);
+    eval_program_const_exprs(&mut program_ast);
     if cli.debug {
         dbg!(&program_ast);
     }
