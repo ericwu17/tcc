@@ -4,6 +4,7 @@ use crate::{
 };
 
 use super::{
+    const_eval::eval_unop,
     expr_parser::{generate_expr_ast, BinOp, BinOpPrecedenceLevel, Expr, ExprEnum},
     global_strings::add_static_string,
     token_cursor::TokenCursor,
@@ -25,6 +26,11 @@ pub fn generate_factor_ast(tokens: &mut TokenCursor) -> Expr {
             let un_op = token.to_un_op().unwrap();
             tokens.next();
             let factor = generate_factor_ast(tokens);
+
+            if let ExprEnum::Int(_) = factor.content {
+                return eval_unop(un_op, factor);
+            }
+
             return Expr::new(ExprEnum::UnOp(un_op, Box::new(factor)));
         }
         Some(Token::Star) => {

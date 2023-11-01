@@ -1,4 +1,5 @@
 pub mod arr_initializer_expr;
+pub mod const_eval;
 pub mod expr_parser;
 pub mod factor_parser;
 pub mod for_loop_parser;
