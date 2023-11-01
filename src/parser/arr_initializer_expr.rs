@@ -21,6 +21,11 @@ pub fn generate_arr_init_expr_ast(tokens: &mut TokenCursor, expected_type: &VarT
         ),
     };
 
+    let nested_array_expected = match inner_expected_type.as_ref() {
+        VarType::Arr(_, _) => true,
+        VarType::Fund(_) | VarType::Ptr(_) => false,
+    };
+
     if let Some(Token::StringLiteral(s)) = tokens.peek() {
         let res = generate_arr_init_expr_from_str(s.clone(), tokens, expected_type);
         tokens.next();
@@ -37,9 +42,16 @@ pub fn generate_arr_init_expr_ast(tokens: &mut TokenCursor, expected_type: &VarT
     while tokens.peek() != Some(&Token::CloseBrace) {
         match tokens.peek() {
             Some(Token::OpenBrace) | Some(Token::StringLiteral(_)) => {
+                if !nested_array_expected {
+                    err_display("array initializer too deep!", tokens.get_last_ptr());
+                }
+
                 exprs.push(generate_arr_init_expr_ast(tokens, inner_expected_type));
             }
             _ => {
+                if nested_array_expected {
+                    err_display("array initializer too shallow!", tokens.get_last_ptr());
+                }
                 exprs.push(generate_expr_ast(
                     tokens,
                     BinOpPrecedenceLevel::lowest_level(),
