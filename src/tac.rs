@@ -14,7 +14,7 @@ use crate::parser::Function;
 use crate::parser::{expr_parser::Expr, Program, Statement};
 use crate::types::{VarSize, VarType};
 
-use self::array_init_expr::gen_arr_init_expr_tac;
+use self::array_init_expr::{gen_arr_init_expr_tac, gen_opt_arr_init_expr_tac};
 use self::expr::ValTarget;
 use self::tac_func::TacFunc;
 use self::{
@@ -312,13 +312,21 @@ fn generate_declaration_tac(
             let num_bytes = inner_type.num_bytes() * num_elements;
 
             let mut result = Vec::new();
-            result.push(TacInstr::MemChunk(arr_ptr_identifier, num_bytes));
+            result.push(TacInstr::MemChunk(arr_ptr_identifier, num_bytes, None));
 
             if let Some(arr_init_expr) = opt_value {
+                if let Some(res) = gen_opt_arr_init_expr_tac(
+                    inner_type,
+                    *num_elements,
+                    arr_init_expr,
+                    arr_ptr_identifier,
+                ) {
+                    return res;
+                }
                 let ptr_to_arr = get_new_temp_name(VarSize::Quad);
                 result.push(TacInstr::Copy(ptr_to_arr, TacVal::Var(arr_ptr_identifier)));
                 result.extend(gen_arr_init_expr_tac(
-                    &inner_type,
+                    inner_type,
                     arr_init_expr,
                     ptr_to_arr,
                     code_env,

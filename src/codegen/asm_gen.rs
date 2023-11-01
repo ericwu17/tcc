@@ -23,7 +23,29 @@ pub fn convert_to_asm(instr: &X86Instr) -> String {
             convert_location_to_asm(src, *size),
         ),
         X86Instr::MovImm { dst, imm, size } => {
-            format!("mov {}, {}", convert_location_to_asm(dst, *size), imm)
+            if let Location::Mem(_) = dst {
+                if size == &VarSize::Quad {
+                    let mut result = format!("mov rdi, {}\n  ", imm);
+                    result.push_str(&format!(
+                        "mov qword {}, rdi",
+                        convert_location_to_asm(dst, *size),
+                    ));
+
+                    return result;
+                }
+            }
+            let size_str = match size {
+                VarSize::Byte => "byte",
+                VarSize::Word => "word",
+                VarSize::Dword => "dword",
+                VarSize::Quad => "qword",
+            };
+            format!(
+                "mov {} {}, {}",
+                size_str,
+                convert_location_to_asm(dst, *size),
+                imm
+            )
         }
         X86Instr::Add { dst, src, size } => {
             format!(

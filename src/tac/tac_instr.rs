@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self};
 
 use crate::parser::expr_parser::{BinOp, UnOp};
 
@@ -6,10 +6,10 @@ use super::{Identifier, TacVal};
 
 pub enum TacInstr {
     Return(TacVal),
-    MemChunk(Identifier, usize), // sets the identifier to a pointer pointing to a usize number of bytes
-    Deref(Identifier, Identifier), // a = *b
-    Ref(Identifier, Identifier), // a = &b
-    DerefStore(Identifier, TacVal), // *a = b
+    MemChunk(Identifier, usize, Option<Vec<u8>>), // sets the identifier to a pointer pointing to a usize number of bytes
+    Deref(Identifier, Identifier),                // a = *b
+    Ref(Identifier, Identifier),                  // a = &b
+    DerefStore(Identifier, TacVal),               // *a = b
     BinOp(Identifier, TacVal, TacVal, BinOp),
     UnOp(Identifier, TacVal, UnOp),
     Copy(Identifier, TacVal),
@@ -32,7 +32,7 @@ impl TacInstr {
             | TacInstr::Copy(ident, _)
             | TacInstr::Deref(ident, _)
             | TacInstr::Ref(ident, _)
-            | TacInstr::MemChunk(ident, _)
+            | TacInstr::MemChunk(ident, _, _)
             | TacInstr::StaticStrPtr(ident, _) => {
                 result = Some(*ident);
             }
@@ -72,7 +72,7 @@ impl TacInstr {
             TacInstr::Label(..)
             | TacInstr::Jmp(..)
             | TacInstr::LoadArg(_, _)
-            | TacInstr::MemChunk(_, _)
+            | TacInstr::MemChunk(_, _, _)
             | TacInstr::Ref(_, _)
             | TacInstr::StaticStrPtr(_, _) => {}
 
@@ -125,7 +125,7 @@ impl fmt::Debug for TacInstr {
             TacInstr::LoadArg(ident, index) => {
                 write!(f, "{:?} is argument {}", ident, index)
             }
-            TacInstr::MemChunk(ident, size) => {
+            TacInstr::MemChunk(ident, size, _) => {
                 write!(f, "{:?} = alloc({})", ident, size)
             }
             TacInstr::Deref(ident1, ident2) => {

@@ -16,6 +16,8 @@ pub fn gen_arr_init_expr_tac(
     ptr_to_arr: Identifier,
     code_env: &CodeEnv,
 ) -> Vec<TacInstr> {
+    // generates an array initializer expression by evaluating each expression (at runtime)
+    // and storing each value into the array.
     let mut result = Vec::new();
 
     let exprs = match &arr_init_expr.content {
@@ -58,4 +60,44 @@ pub fn gen_arr_init_expr_tac(
     }
 
     result
+}
+
+pub fn gen_opt_arr_init_expr_tac(
+    arr_type: &VarType,
+    num_elements: usize,
+    arr_init_expr: &Expr,
+    ptr_to_arr: Identifier,
+) -> Option<Vec<TacInstr>> {
+    let exprs = match &arr_init_expr.content {
+        ExprEnum::ArrInitExpr(x) => x,
+        _ => unreachable!(),
+    };
+
+    let mut bytes = Vec::new();
+    let element_size = arr_type.num_bytes();
+
+    for expr in exprs {
+        match expr.content {
+            ExprEnum::Int(value) => match element_size {
+                1 => bytes.extend((value as i8).to_le_bytes()),
+                2 => bytes.extend((value as i16).to_le_bytes()),
+                4 => bytes.extend((value as i32).to_le_bytes()),
+                8 => bytes.extend((value as i64).to_le_bytes()),
+                _ => return None,
+            },
+            _ => return None,
+        }
+    }
+    while bytes.len() < num_elements * element_size {
+        bytes.push(0);
+    }
+    let mut result = Vec::new();
+
+    result.push(TacInstr::MemChunk(
+        ptr_to_arr,
+        num_elements * element_size,
+        Some(bytes),
+    ));
+
+    Some(result)
 }

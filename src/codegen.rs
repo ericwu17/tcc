@@ -233,8 +233,11 @@ fn gen_x86_for_tac(result: &mut Vec<X86Instr>, instr: &TacInstr, reg_alloc: &Reg
             result.push(X86Instr::Ret);
         }
         TacInstr::LoadArg(ident, arg_num) => gen_load_arg_code(result, ident, *arg_num, reg_alloc),
-        TacInstr::MemChunk(ident, _) => {
-            generate_mem_chunk_init_code(result, *ident, reg_alloc);
+        TacInstr::MemChunk(ident, size, optional_init_bytes) => {
+            if let Some(init_bytes) = optional_init_bytes {
+                assert_eq!(*size, init_bytes.len());
+            }
+            generate_mem_chunk_init_code(result, *ident, optional_init_bytes.as_ref(), reg_alloc);
         }
         TacInstr::Deref(dst, ptr) => generate_deref_code(result, *dst, *ptr, reg_alloc),
         TacInstr::Ref(ident_1, ident_2) => generate_ref_code(result, *ident_1, *ident_2, reg_alloc),
@@ -286,6 +289,7 @@ fn gen_load_val_code(
 fn generate_mem_chunk_init_code(
     result: &mut Vec<X86Instr>,
     ident: Identifier,
+    optional_init_bytes: Option<&Vec<u8>>,
     reg_alloc: &RegisterAllocator,
 ) {
     assert_eq!(ident.get_size(), VarSize::Quad); // the identifier better be a quad to be a pointer to a mem chunk.
@@ -305,6 +309,66 @@ fn generate_mem_chunk_init_code(
         src: Location::Reg(Reg::Rdi),
         size: VarSize::Quad,
     });
+    if let Some(init_bytes) = optional_init_bytes {
+        let mut bytes_consumed = 0usize;
+        let total_num_bytes: usize = init_bytes.len();
+        let bytes_slice = init_bytes.as_slice();
+
+        while bytes_consumed < total_num_bytes {
+            let bytes_remain = total_num_bytes - bytes_consumed;
+
+            if bytes_remain >= 8 {
+                let val = i64::from_le_bytes([
+                    bytes_slice[bytes_consumed],
+                    bytes_slice[bytes_consumed + 1],
+                    bytes_slice[bytes_consumed + 2],
+                    bytes_slice[bytes_consumed + 3],
+                    bytes_slice[bytes_consumed + 4],
+                    bytes_slice[bytes_consumed + 5],
+                    bytes_slice[bytes_consumed + 6],
+                    bytes_slice[bytes_consumed + 7],
+                ]);
+                result.push(X86Instr::MovImm {
+                    dst: Location::Mem(offset - bytes_consumed),
+                    imm: val as i64,
+                    size: VarSize::Quad,
+                });
+                bytes_consumed += 8;
+            } else if bytes_remain >= 4 {
+                let val = i32::from_le_bytes([
+                    bytes_slice[bytes_consumed],
+                    bytes_slice[bytes_consumed + 1],
+                    bytes_slice[bytes_consumed + 2],
+                    bytes_slice[bytes_consumed + 3],
+                ]);
+                result.push(X86Instr::MovImm {
+                    dst: Location::Mem(offset - bytes_consumed),
+                    imm: val as i64,
+                    size: VarSize::Dword,
+                });
+                bytes_consumed += 4;
+            } else if bytes_remain >= 2 {
+                let val = i16::from_le_bytes([
+                    bytes_slice[bytes_consumed],
+                    bytes_slice[bytes_consumed + 1],
+                ]);
+                result.push(X86Instr::MovImm {
+                    dst: Location::Mem(offset - bytes_consumed),
+                    imm: val as i64,
+                    size: VarSize::Word,
+                });
+                bytes_consumed += 2;
+            } else {
+                let val = i8::from_le_bytes([bytes_slice[bytes_consumed]]);
+                result.push(X86Instr::MovImm {
+                    dst: Location::Mem(offset - bytes_consumed),
+                    imm: val as i64,
+                    size: VarSize::Byte,
+                });
+                bytes_consumed += 1;
+            }
+        }
+    }
 }
 
 fn generate_deref_code(

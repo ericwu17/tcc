@@ -40,7 +40,7 @@ impl RegisterAllocator {
 
         let mut ident_to_init_val_map: HashMap<Identifier, usize> = HashMap::new();
         for instr in tac_instrs {
-            if let TacInstr::MemChunk(ptr_ident, chunk_size) = instr {
+            if let TacInstr::MemChunk(ptr_ident, chunk_size, _) = instr {
                 bytes_needed += chunk_size;
                 ident_to_init_val_map.insert(*ptr_ident, bytes_needed);
             }
