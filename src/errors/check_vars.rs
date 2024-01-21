@@ -6,12 +6,12 @@ use crate::parser::{
     Program, Statement,
 };
 
-// The check_vars function takes a program AST,
-// and verifies that there are no references to undeclared variables
-// or doubly-declared variables.
+/// The check_vars function takes a program AST,
+/// and verifies that there are no usages of undeclared variables
+/// or doubly-declared variables.
 pub fn check_vars(program: &Program) {
     for function in &program.functions {
-        let body = &function.body;
+        let body: &Vec<Statement> = &function.body;
         let mut known_vars = HashSet::new();
         for (arg_name, _) in &function.args {
             known_vars.insert(arg_name.clone());
@@ -21,7 +21,7 @@ pub fn check_vars(program: &Program) {
     }
 }
 
-pub fn check_stmts_vars(stmts: &Vec<Statement>, mut known_var_names: HashSet<String>) {
+fn check_stmts_vars(stmts: &Vec<Statement>, mut known_var_names: HashSet<String>) {
     // note that known_var_names is a owned hashset, not a reference, because
     // this function add to the hashset, but it should not change the hashset owned
     // by the caller. The caller should clone a known_var_names hashset before passing it

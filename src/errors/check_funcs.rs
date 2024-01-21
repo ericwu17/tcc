@@ -13,11 +13,11 @@ struct FuncDecl {
     num_args: usize,
 }
 
-// The check_funcs function takes a program AST,
-// and verifies that:
-//    - Every function call must have a definition with the same number of parameters
-//    - There are no duplicate function names
-//    - There is a "main" function
+/// The check_funcs function takes a program AST,
+/// and verifies that:
+///    - Every function call must have a definition with the same number of parameters
+///    - There are no duplicate function names
+///    - There is a "main" function
 pub fn check_funcs(program: &Program) {
     let mut known_functions = Vec::new();
     let mut declared_names = Vec::new();

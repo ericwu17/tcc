@@ -112,10 +112,12 @@ fn get_new_label_number() -> usize {
     }
 }
 
+/// This function takes as input a program AST,
+/// and as output will generate the TAC IR (three-address-code intermediate representation)
 pub fn generate_tac(mut program: Program) -> Vec<TacFunc> {
     check_funcs(&program);
     check_vars(&program);
-    check_types(&mut program); // check types will also evaluate sizeof, this we need mut
+    check_types(&mut program); // check types will also evaluate sizeof, thus we need mut
 
     let mut tac_funcs = Vec::new();
 

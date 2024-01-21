@@ -5,21 +5,22 @@ use super::{
     Program, Statement,
 };
 
+/// evaluates constant expressions in a program AST.
+/// for example, the expression (-(3+7) * 5) will be replaced with -50, since
+/// the expression consists of only integers that can be simplified at compile time.
 pub fn eval_program_const_exprs(program: &mut Program) {
-    // evaluates constant expressions in a program AST.
-    // for example, the expression (-(3+7) * 5) will be replaced with -50, since
-    // the expression consists of only integers that can be simplified at compile time.
     for function in &mut program.functions {
         eval_compound_stmt_exprs(&mut function.body);
     }
 }
 
-pub fn eval_compound_stmt_exprs(stmts: &mut Vec<Statement>) {
+fn eval_compound_stmt_exprs(stmts: &mut Vec<Statement>) {
     for statement in stmts {
         eval_stmt_exprs(statement);
     }
 }
-pub fn eval_stmt_exprs(stmt: &mut Statement) {
+
+fn eval_stmt_exprs(stmt: &mut Statement) {
     let mut exprs_to_eval = Vec::new();
     match stmt {
         Statement::Continue | Statement::Empty | Statement::Break => {}

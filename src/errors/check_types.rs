@@ -10,9 +10,9 @@ use super::display::err_display_no_source;
 
 #[derive(Debug)]
 pub struct CodeEnv {
-    // a list of maps, one for each scope level, mapping variable names to types
+    /// a list of maps, one for each scope level, mapping variable names to types
     pub var_map_list: Vec<HashMap<String, VarType>>,
-    // a map of function name to the return type of the function
+    /// a map of function name to the return type of the function
     pub func_ret_type_map: HashMap<String, VarType>,
 }
 
@@ -34,7 +34,7 @@ impl CodeEnv {
             }
         }
 
-        // unreachble because check_funcs already checked that all functions are already defined
+        // unreachable because check_funcs already checked that all functions are already defined
         unreachable!()
     }
 }
@@ -49,6 +49,7 @@ fn resolve_variable_to_temp_name(name: &String, code_env: &CodeEnv) -> VarType {
     unreachable!()
 }
 
+/// This function will also evaluate expressions using `sizeof`.
 pub fn check_types(program: &mut Program) {
     let mut func_ret_type_map = HashMap::new();
     for function in &program.functions {
@@ -68,7 +69,7 @@ pub fn check_types(program: &mut Program) {
     }
 }
 
-pub fn check_compound_stmt_types(stmts: &mut Vec<Statement>, code_env: &mut CodeEnv) {
+fn check_compound_stmt_types(stmts: &mut Vec<Statement>, code_env: &mut CodeEnv) {
     let this_scopes_variable_map: HashMap<String, VarType> = HashMap::new();
     code_env.var_map_list.push(this_scopes_variable_map);
 
@@ -79,7 +80,7 @@ pub fn check_compound_stmt_types(stmts: &mut Vec<Statement>, code_env: &mut Code
     code_env.var_map_list.pop();
 }
 
-pub fn check_stmt_types(stmt: &mut Statement, code_env: &mut CodeEnv) {
+fn check_stmt_types(stmt: &mut Statement, code_env: &mut CodeEnv) {
     match stmt {
         Statement::Continue | Statement::Break | Statement::Empty => {}
         Statement::Return(expr) => {
@@ -161,13 +162,13 @@ fn check_bool_expr(expr: &mut Expr, code_env: &CodeEnv) {
     }
 }
 
-// This function computes the type of an expression, returning None
-// if the type is "flexible" such as a literal 3 which can be either an int or a long.
-// This function calls err_display_no_source (and thus exits) if it detects improper use as deened by:
-//      adding pointer to something not an integer type
-//      mixing number/pointer types
-//      doing anything with an array which is not "index" or "ref"
-//      assignment to something which is not an l_value
+/// This function computes the type of an expression, returning None
+/// if the type is "flexible" such as a literal 3 which can be either an int or a long.
+/// This function calls err_display_no_source (and thus exits) if it detects improper use as deemed by:
+///      adding pointer to something not an integer type
+///      mixing number/pointer types
+///      doing anything with an array which is not "index" or "ref"
+///      assignment to something which is not an l_value
 pub fn get_type(expr: &mut Expr, code_env: &CodeEnv) -> Option<VarType> {
     let type_;
     match &mut expr.content {

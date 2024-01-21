@@ -13,7 +13,7 @@ fn convert_location_to_asm(location: &Location, size: VarSize) -> String {
     }
 }
 
-pub fn convert_to_asm(instr: &X86Instr) -> String {
+fn convert_to_asm(instr: &X86Instr) -> String {
     match instr {
         X86Instr::Push { reg } => format!("push {}", reg.get_64_bit_name()),
         X86Instr::Pop { reg } => format!("pop {}", reg.get_64_bit_name()),
@@ -108,6 +108,7 @@ pub fn convert_to_asm(instr: &X86Instr) -> String {
     }
 }
 
+/// Converts the internal X86 representation into an assembly file format
 pub fn generate_program_asm(instrs: &Vec<X86Instr>) -> String {
     let mut result = String::new();
 
