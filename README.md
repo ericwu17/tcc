@@ -1,5 +1,7 @@
 # tcc
 
+Not to be confused with tcc by Fabrice Bellard: an [*actual* C compiler](https://en.wikipedia.org/wiki/Tiny_C_Compiler).
+
 This is a personal project to learn more about compilers and the x86-64 architecture.
 tcc (toy-c-compiler) can compile a tiny subset of C programs into asm files.
 tcc will then assemble the file using `nasm` and link the output with `ld`. Currently,
