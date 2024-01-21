@@ -149,7 +149,7 @@ pub fn generate_x86_code(tac_funcs: &Vec<TacFunc>) -> Vec<X86Instr> {
 }
 
 fn generate_function_x86(result: &mut Vec<X86Instr>, function: &TacFunc) {
-    let (reg_alloc, num_bytes_needed) = RegisterAllocator::new(&function.body);
+    let (reg_alloc, num_bytes_needed) = RegisterAllocator::new(function);
 
     // FUNCTION PROLOGUE
     if function.name == "main" {
@@ -170,6 +170,10 @@ fn generate_function_x86(result: &mut Vec<X86Instr>, function: &TacFunc) {
         imm: num_bytes_needed as i64,
         size: VarSize::Quad,
     });
+
+    for (index, (arg_ident, _)) in function.args.iter().enumerate() {
+        gen_load_arg_code(result, arg_ident, index, &reg_alloc);
+    }
 
     for instr in &function.body {
         gen_x86_for_tac(result, instr, &reg_alloc);
@@ -232,7 +236,6 @@ fn gen_x86_for_tac(result: &mut Vec<X86Instr>, instr: &TacInstr, reg_alloc: &Reg
             result.push(X86Instr::Pop { reg: Reg::Rbp });
             result.push(X86Instr::Ret);
         }
-        TacInstr::LoadArg(ident, arg_num) => gen_load_arg_code(result, ident, *arg_num, reg_alloc),
         TacInstr::MemChunk(ident, size, optional_init_bytes) => {
             if let Some(init_bytes) = optional_init_bytes {
                 assert_eq!(*size, init_bytes.len());

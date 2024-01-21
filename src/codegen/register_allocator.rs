@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::tac::{tac_instr::TacInstr, Identifier};
+use crate::tac::{tac_func::TacFunc, tac_instr::TacInstr, Identifier};
 
 use super::Location;
 
@@ -10,14 +10,18 @@ pub struct RegisterAllocator {
 }
 
 impl RegisterAllocator {
-    pub fn new(tac_instrs: &Vec<TacInstr>) -> (Self, usize) {
+    pub fn new(f: &TacFunc) -> (Self, usize) {
         let mut set_of_temporaries: Vec<Identifier> = Vec::new();
 
-        for instr in tac_instrs {
+        for (arg_ident, _) in &f.args {
+            set_of_temporaries.push(*arg_ident);
+        }
+
+        for instr in &f.body {
             for ident in instr.get_read_identifiers() {
                 if !set_of_temporaries.contains(&ident) {
                     eprintln!(
-                        "warning: found read from temporary {:?} wit writing first.",
+                        "warning: found read from temporary {:?} without writing first.",
                         ident
                     );
                 }
@@ -39,7 +43,7 @@ impl RegisterAllocator {
         }
 
         let mut ident_to_init_val_map: HashMap<Identifier, usize> = HashMap::new();
-        for instr in tac_instrs {
+        for instr in &f.body {
             if let TacInstr::MemChunk(ptr_ident, chunk_size, _) = instr {
                 bytes_needed += chunk_size;
                 ident_to_init_val_map.insert(*ptr_ident, bytes_needed);

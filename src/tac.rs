@@ -132,11 +132,12 @@ fn generate_function_tac(function: &Function) -> TacFunc {
     let mut code_env = CodeEnv::new(function.name == "main");
     let mut this_scopes_variable_map: HashMap<String, Identifier> = HashMap::new();
     let mut body = Vec::new();
+    let mut args = Vec::new();
 
-    for (index, (arg_name, arg_type)) in function.args.iter().enumerate() {
+    for (arg_name, arg_type) in function.args.iter() {
         let var_temp_loc = get_new_temp_name(arg_type.to_size().unwrap());
         this_scopes_variable_map.insert(arg_name.clone(), var_temp_loc);
-        body.push(TacInstr::LoadArg(var_temp_loc, index));
+        args.push((var_temp_loc, arg_type.clone()));
     }
     code_env.var_map_list.push(this_scopes_variable_map);
 
@@ -168,6 +169,7 @@ fn generate_function_tac(function: &Function) -> TacFunc {
 
     TacFunc {
         name: function.name.clone(),
+        args,
         body,
     }
 }

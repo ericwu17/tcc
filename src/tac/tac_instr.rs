@@ -18,16 +18,26 @@ pub enum TacInstr {
     JmpZero(String, TacVal),
     JmpNotZero(String, TacVal),
     Call(String, Vec<TacVal>, Option<Identifier>),
-    LoadArg(Identifier, usize), //loads an argument of the function, emitted at the beginning of the function body
     StaticStrPtr(Identifier, String), // set identifier to a static string pointing to data specified by the string.
 }
+
+// TODO: implement basic blocks
+// pub enumTacBBInstr {
+
+// }
+
+// /// A `TacBasicBlock` represents a chain of instructions which will be executed in order,
+// /// uninterrupted by branches. The basic block allows optimizations to be performed.
+// /// A basic block always ends with a branch or a return.
+// pub struct TacBasicBlock {
+//     instrs: [TacBBInstr],
+// }
 
 impl TacInstr {
     pub fn get_written_identifier(&self) -> Option<Identifier> {
         let mut result = None;
         match self {
-            TacInstr::LoadArg(ident, _)
-            | TacInstr::BinOp(ident, _, _, _)
+            TacInstr::BinOp(ident, _, _, _)
             | TacInstr::UnOp(ident, _, _)
             | TacInstr::Copy(ident, _)
             | TacInstr::Deref(ident, _)
@@ -71,7 +81,6 @@ impl TacInstr {
 
             TacInstr::Label(..)
             | TacInstr::Jmp(..)
-            | TacInstr::LoadArg(_, _)
             | TacInstr::MemChunk(_, _, _)
             | TacInstr::Ref(_, _)
             | TacInstr::StaticStrPtr(_, _) => {}
@@ -121,9 +130,6 @@ impl fmt::Debug for TacInstr {
             },
             TacInstr::Return(v) => {
                 write!(f, "return {:?}", v)
-            }
-            TacInstr::LoadArg(ident, index) => {
-                write!(f, "{:?} is argument {}", ident, index)
             }
             TacInstr::MemChunk(ident, size, _) => {
                 write!(f, "{:?} = alloc({})", ident, size)
