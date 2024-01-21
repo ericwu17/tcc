@@ -99,8 +99,8 @@ fn check_for_loop_vars(
         _ => unreachable!(),
     }
 
-    check_expr_vars(ctrl_expr, &mut known_var_names);
-    check_expr_vars(post_expr, &mut known_var_names);
+    check_expr_vars(ctrl_expr, &known_var_names);
+    check_expr_vars(post_expr, &known_var_names);
 
     check_stmt_vars(body, &mut known_var_names, vars_decl_local_scope);
 }

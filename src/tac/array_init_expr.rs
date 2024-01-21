@@ -103,7 +103,7 @@ fn gen_arr_init_expr_bytes(
                 1 => bytes.extend((value as i8).to_le_bytes()),
                 2 => bytes.extend((value as i16).to_le_bytes()),
                 4 => bytes.extend((value as i32).to_le_bytes()),
-                8 => bytes.extend((value as i64).to_le_bytes()),
+                8 => bytes.extend(value.to_le_bytes()),
                 _ => return None,
             },
             ExprEnum::ArrInitExpr(_) => {

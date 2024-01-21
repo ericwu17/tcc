@@ -47,9 +47,9 @@ fn main() {
 
     let mut contents = String::new();
     File::open(&input_filepath)
-        .expect(&format!("could not open file: {}", &input_filepath))
+        .unwrap_or_else(|_| panic!("could not open file: {}", &input_filepath))
         .read_to_string(&mut contents)
-        .expect(&format!("error reading file: {}", &input_filepath));
+        .unwrap_or_else(|_| panic!("error reading file: {}", &input_filepath));
 
     let tokens = get_tokens(contents);
     if cli.debug {
@@ -78,7 +78,7 @@ fn main() {
 
     File::create(ASM_FILE_NAME)
         .expect("error creating ASM output file.")
-        .write(asm_code.as_bytes())
+        .write_all(asm_code.as_bytes())
         .expect("error writing output to ASM output file.");
 
     if !no_assemble {

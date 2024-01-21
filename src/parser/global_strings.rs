@@ -13,7 +13,7 @@ pub fn get_string_label(s: &String) -> String {
         // SAFETY: no race conditions in this single threaded program.
         for (index, string) in STATIC_STRINGS.iter().enumerate() {
             if string == s {
-                return format!(".globl_str_{}", index.to_string());
+                return format!(".globl_str_{}", index);
             }
         }
     }
@@ -28,7 +28,7 @@ pub fn generate_global_strings_asm() -> String {
 
         // SAFETY: no race conditions in this single threaded program.
         for (index, string_val) in STATIC_STRINGS.iter().enumerate() {
-            let string_label = format!(".globl_str_{}", index.to_string());
+            let string_label = format!(".globl_str_{}", index);
             let mut string_bytes = String::new();
             for b in string_val.as_bytes() {
                 string_bytes.push_str(&b.to_string());

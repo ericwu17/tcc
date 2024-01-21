@@ -110,16 +110,17 @@ fn eval_unop(op: UnOp, expr: Expr) -> Option<Expr> {
         _ => return None,
     };
 
-    let new_val;
-    match op {
-        UnOp::Negation => {
-            new_val = -val;
-        }
-        UnOp::BitwiseComplement => new_val = !val,
+    let new_val = match op {
+        UnOp::Negation => -val,
+        UnOp::BitwiseComplement => !val,
         UnOp::Not => {
-            new_val = if val == 0 { 1 } else { 0 };
+            if val == 0 {
+                1
+            } else {
+                0
+            }
         }
-    }
+    };
 
     Some(Expr {
         content: ExprEnum::Int(new_val),
@@ -169,9 +170,5 @@ fn bool_to_i64(b: bool) -> i64 {
 }
 
 fn i64_to_bool(x: i64) -> bool {
-    if x == 0 {
-        false
-    } else {
-        true
-    }
+    x != 0
 }

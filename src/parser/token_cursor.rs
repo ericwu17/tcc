@@ -44,6 +44,6 @@ impl TokenCursor {
 
     pub fn get_last_ptr(&self) -> SourcePtr {
         let optional_ptr = self.contents.get(self.index - 1).map(|(_, ptr)| *ptr);
-        return optional_ptr.unwrap_or(SourcePtr::new());
+        optional_ptr.unwrap_or(SourcePtr::new())
     }
 }

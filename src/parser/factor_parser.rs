@@ -16,9 +16,9 @@ pub fn generate_factor_ast(tokens: &mut TokenCursor) -> Expr {
             tokens.next();
             let factor = generate_factor_ast(tokens);
             if op == Op::PlusPlus {
-                return Expr::new(ExprEnum::PrefixInc(Box::new(factor)));
+                Expr::new(ExprEnum::PrefixInc(Box::new(factor)))
             } else {
-                return Expr::new(ExprEnum::PrefixDec(Box::new(factor)));
+                Expr::new(ExprEnum::PrefixDec(Box::new(factor)))
             }
         }
         Some(token) if token.to_un_op().is_some() => {
@@ -26,24 +26,23 @@ pub fn generate_factor_ast(tokens: &mut TokenCursor) -> Expr {
             tokens.next();
             let factor = generate_factor_ast(tokens);
 
-            return Expr::new(ExprEnum::UnOp(un_op, Box::new(factor)));
+            Expr::new(ExprEnum::UnOp(un_op, Box::new(factor)))
         }
         Some(Token::Star) => {
             tokens.next();
             let factor = generate_factor_ast(tokens);
-            return Expr::new(ExprEnum::Deref(Box::new(factor)));
+            Expr::new(ExprEnum::Deref(Box::new(factor)))
         }
         Some(Token::Ampersand) => {
             tokens.next();
             let factor = generate_factor_ast(tokens);
-            return Expr::new(ExprEnum::Ref(Box::new(factor)));
+            Expr::new(ExprEnum::Ref(Box::new(factor)))
         }
         Some(Token::Identifier { val }) => {
             let val = val.clone();
             tokens.next();
 
-            let expr;
-            if tokens.peek() == Some(&Token::OpenParen) {
+            let expr = if tokens.peek() == Some(&Token::OpenParen) {
                 tokens.next(); // consume the open paren
                 let args = parse_function_args(tokens);
                 if tokens.next() != Some(&Token::CloseParen) {
@@ -55,18 +54,18 @@ pub fn generate_factor_ast(tokens: &mut TokenCursor) -> Expr {
                         tokens.get_last_ptr(),
                     )
                 }
-                expr = Expr::new(ExprEnum::FunctionCall(val, args));
+                Expr::new(ExprEnum::FunctionCall(val, args))
             } else {
-                expr = Expr::new(ExprEnum::Var(val));
-            }
+                Expr::new(ExprEnum::Var(val))
+            };
 
-            return attach_postfix_ops(tokens, expr);
+            attach_postfix_ops(tokens, expr)
         }
         Some(Token::StringLiteral(val)) => {
             let val = val.clone();
             tokens.next();
             add_static_string(val.clone());
-            return Expr::new(ExprEnum::StaticStrPtr(val.clone()));
+            Expr::new(ExprEnum::StaticStrPtr(val.clone()))
         }
         Some(Token::Sizeof) => {
             tokens.next(); // consume the "sizeof"
@@ -76,14 +75,14 @@ pub fn generate_factor_ast(tokens: &mut TokenCursor) -> Expr {
                 BinOpPrecedenceLevel::lowest_level(),
             ))));
             assert_eq!(tokens.next(), Some(&Token::CloseParen));
-            return expr;
+            expr
         }
 
         Some(Token::IntLit { val }) => {
-            let val_i32 = i64::from_str_radix(val, 10).unwrap();
+            let val_i32 = str::parse(val).unwrap();
             tokens.next();
 
-            return Expr::new(ExprEnum::Int(val_i32));
+            Expr::new(ExprEnum::Int(val_i32))
         }
         Some(Token::OpenParen) => {
             tokens.next(); // consume opening parenthesis
@@ -99,7 +98,7 @@ pub fn generate_factor_ast(tokens: &mut TokenCursor) -> Expr {
                     tokens.get_last_ptr(),
                 )
             }
-            return attach_postfix_ops(tokens, expr);
+            attach_postfix_ops(tokens, expr)
         }
         _ => err_display(
             format!("unexpected token: {:?}", tokens.peek()),
@@ -111,7 +110,7 @@ pub fn generate_factor_ast(tokens: &mut TokenCursor) -> Expr {
 fn attach_postfix_ops(tokens: &mut TokenCursor, curr_expr: Expr) -> Expr {
     if tokens.peek() == Some(&Token::Op(Op::MinusMinus)) {
         tokens.next();
-        return attach_postfix_ops(tokens, Expr::new(ExprEnum::PostfixDec(Box::new(curr_expr))));
+        attach_postfix_ops(tokens, Expr::new(ExprEnum::PostfixDec(Box::new(curr_expr))))
     } else if tokens.peek() == Some(&Token::Op(Op::PlusPlus)) {
         tokens.next();
         return attach_postfix_ops(tokens, Expr::new(ExprEnum::PostfixInc(Box::new(curr_expr))));

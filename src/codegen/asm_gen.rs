@@ -122,7 +122,7 @@ pub fn generate_program_asm(instrs: &Vec<X86Instr>) -> String {
 
     for instr in instrs {
         let instr_string = convert_to_asm(instr);
-        if !instr_string.starts_with(".") && instr != &X86Instr::StartLabel {
+        if !instr_string.starts_with('.') && instr != &X86Instr::StartLabel {
             // we assume only labels begin with ".", and labels should not be indented.s
             result.push_str(indent);
         }

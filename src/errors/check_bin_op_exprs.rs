@@ -38,15 +38,15 @@ pub fn get_binop_type(
             if error {
                 err_display_no_source("expected integer in *, /, %, &&, or ||")
             }
-            return t1;
+            t1
         }
 
         BinOp::Plus | BinOp::Minus => match (&t1, &t2) {
-            (None | Some(VarType::Fund(_)), None | Some(VarType::Fund(_))) => return t1,
+            (None | Some(VarType::Fund(_)), None | Some(VarType::Fund(_))) => t1,
             (None | Some(VarType::Fund(_)), Some(t)) | (Some(t), None | Some(VarType::Fund(_))) => {
                 match t {
-                    VarType::Fund(_) => return Some(t.clone()),
-                    VarType::Ptr(_) => return Some(t.clone()),
+                    VarType::Fund(_) => Some(t.clone()),
+                    VarType::Ptr(_) => Some(t.clone()),
                     VarType::Arr(array_inner_type, _) => {
                         Some(VarType::Ptr(array_inner_type.clone()))
                     }
@@ -75,7 +75,7 @@ pub fn get_binop_type(
                     t1, t2
                 ));
             }
-            return t1;
+            t1
         }
 
         BinOp::Assign => {
@@ -85,7 +85,7 @@ pub fn get_binop_type(
             if !are_assignment_compatible_types(&t1, &t2) {
                 err_display_no_source("wrong types in assignment.")
             }
-            return t1;
+            t1
         }
     }
 }

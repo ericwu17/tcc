@@ -175,7 +175,7 @@ pub fn get_type(expr: &mut Expr, code_env: &CodeEnv) -> Option<VarType> {
         ExprEnum::Int(_) => {
             type_ = None;
         }
-        ExprEnum::Var(var_name) => type_ = Some(resolve_variable_to_temp_name(&var_name, code_env)),
+        ExprEnum::Var(var_name) => type_ = Some(resolve_variable_to_temp_name(var_name, code_env)),
         ExprEnum::UnOp(_, inner) => {
             let inner_type = get_type(inner, code_env);
             match &inner_type {
@@ -235,7 +235,7 @@ pub fn get_type(expr: &mut Expr, code_env: &CodeEnv) -> Option<VarType> {
             }
         }
         ExprEnum::Ref(inner) => {
-            if !is_l_value(&inner) {
+            if !is_l_value(inner) {
                 err_display_no_source("tried to take a reference to something that isn't a lvalue.")
             }
             let inner_type = get_type(inner, code_env).unwrap();
@@ -246,7 +246,7 @@ pub fn get_type(expr: &mut Expr, code_env: &CodeEnv) -> Option<VarType> {
         | ExprEnum::PostfixInc(inner)
         | ExprEnum::PrefixDec(inner)
         | ExprEnum::PrefixInc(inner) => {
-            if !is_l_value(&inner) {
+            if !is_l_value(inner) {
                 err_display_no_source("tried use ++ or -- on something that isn't a lvalue.")
             }
             type_ = Some(get_type(inner, code_env).unwrap());
@@ -263,7 +263,7 @@ pub fn get_type(expr: &mut Expr, code_env: &CodeEnv) -> Option<VarType> {
         }
     };
     expr.type_ = type_.clone();
-    return type_;
+    type_
 }
 
 pub fn is_l_value(expr: &Expr) -> bool {

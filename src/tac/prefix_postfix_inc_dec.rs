@@ -69,7 +69,7 @@ pub fn gen_prefix_postfix_inc_dec(
                 }
             }
 
-            return (result, TacVal::Var(ident_to_return));
+            (result, TacVal::Var(ident_to_return))
         }
         ExprEnum::Deref(ptr_expr) => {
             let (mut result, tac_val_1) =

@@ -132,7 +132,7 @@ fn generate_compound_stmt_ast(tokens: &mut TokenCursor) -> Vec<Statement> {
             tokens.get_last_ptr(),
         );
     }
-    return statements;
+    statements
 }
 
 fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
@@ -218,11 +218,9 @@ fn generate_statement_ast(tokens: &mut TokenCursor) -> Statement {
         }
     }
 
-    if expect_trailing_semicolon {
-        if tokens.next() != Some(&Token::Semicolon) {
-            err_display("expected semicolon after statement", tokens.get_last_ptr())
-        }
+    if expect_trailing_semicolon && tokens.next() != Some(&Token::Semicolon) {
+        err_display("expected semicolon after statement", tokens.get_last_ptr())
     }
 
-    return stmt;
+    stmt
 }

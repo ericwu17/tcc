@@ -40,10 +40,10 @@ pub fn generate_expr_tac(
                     TacVal::Var(target_temp_name),
                 );
             }
-            return (
+            (
                 vec![],
                 TacVal::Var(resolve_variable_to_temp_name(var_name, code_env)),
-            );
+            )
         }
         ExprEnum::Int(v) => match target {
             ValTarget::Generate | ValTarget::None => (vec![], TacVal::Lit(*v, VarSize::Quad)),
@@ -108,7 +108,7 @@ pub fn generate_expr_tac(
                         } else {
                             res.push(TacInstr::Deref(final_temp_name, ident));
                         }
-                        return (res, TacVal::Var(final_temp_name));
+                        (res, TacVal::Var(final_temp_name))
                     } else {
                         unreachable!()
                     }
@@ -133,9 +133,7 @@ pub fn generate_expr_tac(
             _ => unreachable!(),
         },
         ExprEnum::StaticStrPtr(val) => match target {
-            ValTarget::None => {
-                return (vec![], TacVal::Lit(0, VarSize::Quad));
-            }
+            ValTarget::None => (vec![], TacVal::Lit(0, VarSize::Quad)),
             ValTarget::Generate | ValTarget::Ident(_) => {
                 let final_temp_name = if let ValTarget::Ident(ident) = target {
                     ident
@@ -143,10 +141,10 @@ pub fn generate_expr_tac(
                     get_new_temp_name(VarSize::Quad)
                 };
 
-                return (
+                (
                     vec![TacInstr::StaticStrPtr(final_temp_name, val.clone())],
                     TacVal::Var(final_temp_name),
-                );
+                )
             }
         },
         ExprEnum::Sizeof(_) => unreachable!(), // sizeof should have been replaced by int literal by check_types
@@ -357,7 +355,7 @@ fn generate_ternary_tac(
 }
 
 pub fn gen_function_call_tac(
-    func_ident: &String,
+    func_ident: &str,
     args: &Vec<Expr>,
     code_env: &CodeEnv,
     target: ValTarget,
@@ -378,7 +376,7 @@ pub fn gen_function_call_tac(
     }
 
     result.push(TacInstr::Call(
-        func_ident.clone(),
+        func_ident.to_string(),
         arg_vals,
         Some(final_temp_name),
     ));
@@ -401,7 +399,7 @@ pub fn get_bigger_size(s1: Option<VarSize>, s2: Option<VarSize>) -> Option<VarSi
         return Some(VarSize::Byte);
     }
 
-    return None;
+    None
 }
 
 pub fn get_expr_size(expr: &Expr) -> Option<VarSize> {
@@ -475,7 +473,7 @@ fn gen_addition_tac(
         | (VarType::Arr(_, _), VarType::Ptr(_))
         | (VarType::Arr(_, _), VarType::Arr(_, _)) => unreachable!(),
     }
-    return result;
+    result
 }
 
 pub fn gen_subtraction_tac(
@@ -520,7 +518,7 @@ pub fn gen_subtraction_tac(
 
         _ => unreachable!(),
     }
-    return result;
+    result
 }
 
 pub fn get_pointee_size(t: &VarType) -> Option<VarSize> {

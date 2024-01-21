@@ -31,7 +31,7 @@ pub enum CCode {
 }
 
 impl CCode {
-    pub fn to_suffix(&self) -> String {
+    pub fn to_suffix(self) -> String {
         match self {
             CCode::E => "e".to_owned(),
             CCode::NE => "ne".to_owned(),
@@ -278,7 +278,7 @@ fn gen_load_val_code(
             });
             if val.get_size() != VarSize::Quad {
                 result.push(X86Instr::SignExtend {
-                    reg: reg,
+                    reg,
                     size: val.get_size(),
                 });
             }
@@ -330,7 +330,7 @@ fn generate_mem_chunk_init_code(
                 ]);
                 result.push(X86Instr::MovImm {
                     dst: Location::Mem(offset - bytes_consumed),
-                    imm: val as i64,
+                    imm: val,
                     size: VarSize::Quad,
                 });
                 bytes_consumed += 8;
@@ -406,7 +406,7 @@ fn generate_deref_store_code(
     assert_eq!(ptr.get_size(), VarSize::Quad); // the identifier better be a quad to be a pointer
 
     // load value into rdi
-    gen_load_val_code(result, &val, Reg::Rdi, reg_alloc);
+    gen_load_val_code(result, val, Reg::Rdi, reg_alloc);
 
     // load the memory address into rsi
     gen_load_val_code(result, &TacVal::Var(ptr), Reg::Rsi, reg_alloc);

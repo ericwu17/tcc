@@ -16,22 +16,17 @@ pub fn generate_for_loop_ast(tokens: &mut TokenCursor) -> Statement {
         )
     }
 
-    let initial_clause;
-    let controlling_expr;
-    let post_expr;
-    let loop_body;
-
-    if let Some(&Token::Type(_)) = tokens.peek() {
+    let initial_clause = if let Some(&Token::Type(_)) = tokens.peek() {
         // initial clause is a declare statement
-        initial_clause = parse_variable_declaration(tokens);
+        parse_variable_declaration(tokens)
     } else if tokens.peek() == Some(&Token::Semicolon) {
-        initial_clause = Statement::Empty;
+        Statement::Empty
     } else {
-        initial_clause = Statement::Expr(generate_expr_ast(
+        Statement::Expr(generate_expr_ast(
             tokens,
             BinOpPrecedenceLevel::lowest_level(),
-        ));
-    }
+        ))
+    };
 
     if tokens.next() != Some(&Token::Semicolon) {
         err_display(
@@ -43,14 +38,14 @@ pub fn generate_for_loop_ast(tokens: &mut TokenCursor) -> Statement {
         )
     }
 
-    if tokens.peek() == Some(&Token::Semicolon) {
-        controlling_expr = None;
+    let controlling_expr = if tokens.peek() == Some(&Token::Semicolon) {
+        None
     } else {
-        controlling_expr = Some(generate_expr_ast(
+        Some(generate_expr_ast(
             tokens,
             BinOpPrecedenceLevel::lowest_level(),
-        ));
-    }
+        ))
+    };
 
     if tokens.next() != Some(&Token::Semicolon) {
         err_display(
@@ -62,14 +57,14 @@ pub fn generate_for_loop_ast(tokens: &mut TokenCursor) -> Statement {
         )
     }
 
-    if tokens.peek() == Some(&Token::CloseParen) {
-        post_expr = None;
+    let post_expr = if tokens.peek() == Some(&Token::CloseParen) {
+        None
     } else {
-        post_expr = Some(generate_expr_ast(
+        Some(generate_expr_ast(
             tokens,
             BinOpPrecedenceLevel::lowest_level(),
-        ));
-    }
+        ))
+    };
 
     if tokens.next() != Some(&Token::CloseParen) {
         err_display(
@@ -81,12 +76,12 @@ pub fn generate_for_loop_ast(tokens: &mut TokenCursor) -> Statement {
         )
     }
 
-    loop_body = generate_statement_ast(tokens);
+    let loop_body = generate_statement_ast(tokens);
 
-    return Statement::For(
+    Statement::For(
         Box::new(initial_clause),
         controlling_expr,
         post_expr,
         Box::new(loop_body),
-    );
+    )
 }

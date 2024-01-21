@@ -63,7 +63,7 @@ impl VarType {
 }
 
 impl FundT {
-    pub fn to_size(&self) -> VarSize {
+    pub fn to_size(self) -> VarSize {
         match self {
             FundT::Char => VarSize::Byte,
             FundT::Short => VarSize::Word,
@@ -73,22 +73,17 @@ impl FundT {
     }
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug, Default)]
 pub enum VarSize {
     Byte,
     Word,
     Dword,
+    #[default]
     Quad,
 }
 
-impl Default for VarSize {
-    fn default() -> Self {
-        VarSize::Quad
-    }
-}
-
 impl VarSize {
-    pub fn to_letter(&self) -> char {
+    pub fn to_letter(self) -> char {
         match self {
             VarSize::Byte => 'b',
             VarSize::Word => 'w',
@@ -97,7 +92,7 @@ impl VarSize {
         }
     }
 
-    pub fn num_bytes(&self) -> usize {
+    pub fn num_bytes(self) -> usize {
         match self {
             VarSize::Byte => 1,
             VarSize::Word => 2,

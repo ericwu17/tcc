@@ -7,8 +7,8 @@ use super::{RegisterAllocator, X86Instr};
 
 pub fn generate_function_call_code(
     result: &mut Vec<X86Instr>,
-    function_name: &String,
-    args: &Vec<TacVal>,
+    function_name: &str,
+    args: &[TacVal],
     optional_ident: Option<Identifier>,
     reg_alloc: &RegisterAllocator,
 ) {
@@ -27,7 +27,7 @@ pub fn generate_function_call_code(
     }
 
     result.push(X86Instr::Call {
-        name: function_name.clone(),
+        name: function_name.to_owned(),
     });
 
     if let Some(function_return_val_ident) = optional_ident {

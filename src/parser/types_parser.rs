@@ -16,7 +16,7 @@ use super::{
 pub fn parse_variable_declaration(tokens: &mut TokenCursor) -> Statement {
     let fund_t;
     if let Some(Token::Type(t)) = tokens.next() {
-        fund_t = VarType::Fund(t.clone());
+        fund_t = VarType::Fund(*t);
     } else {
         err_display("expected fundamental type first", tokens.get_last_ptr());
     }
@@ -60,7 +60,7 @@ fn parse_type_declaration(
     let mut type_ = fund_t;
 
     loop {
-        if tokens.len() == 0 {
+        if tokens.is_empty() {
             err_display("expected identifier name", location)
         } else if tokens.len() == 1 {
             match tokens.pop_back() {
@@ -78,9 +78,9 @@ fn parse_type_declaration(
         } else if tokens.back() == Some(&Token::CloseBracket) {
             tokens.pop_back();
 
-            let arr_size;
+            let arr_size: usize;
             if let Some(Token::IntLit { val }) = tokens.pop_back() {
-                arr_size = usize::from_str_radix(&val, 10).unwrap();
+                arr_size = str::parse(&val).unwrap();
                 if arr_size == 0 {
                     err_display("error parsing array type: zero length", location)
                 }

@@ -44,7 +44,7 @@ impl Identifier {
     }
 
     pub fn get_size(&self) -> VarSize {
-        return self.1;
+        self.1
     }
 }
 
@@ -100,7 +100,7 @@ fn get_new_temp_name(size: VarSize) -> Identifier {
     unsafe {
         // Safety: no race conditions because this compiler is single-threaded
         TEMP_STORAGE_NUMBER += 1;
-        return Identifier(TEMP_STORAGE_NUMBER - 1, size);
+        Identifier(TEMP_STORAGE_NUMBER - 1, size)
     }
 }
 
@@ -108,7 +108,7 @@ fn get_new_label_number() -> usize {
     unsafe {
         // Safety: no race conditions because this compiler is single-threaded
         LABEL_NUMBER += 1;
-        return LABEL_NUMBER - 1;
+        LABEL_NUMBER - 1
     }
 }
 
@@ -125,7 +125,7 @@ pub fn generate_tac(mut program: Program) -> Vec<TacFunc> {
         tac_funcs.push(generate_function_tac(&function));
     }
 
-    return tac_funcs;
+    tac_funcs
 }
 
 fn generate_function_tac(function: &Function) -> TacFunc {
@@ -133,12 +133,10 @@ fn generate_function_tac(function: &Function) -> TacFunc {
     let mut this_scopes_variable_map: HashMap<String, Identifier> = HashMap::new();
     let mut body = Vec::new();
 
-    let mut index: usize = 0;
-    for (arg_name, arg_type) in &function.args {
+    for (index, (arg_name, arg_type)) in function.args.iter().enumerate() {
         let var_temp_loc = get_new_temp_name(arg_type.to_size().unwrap());
         this_scopes_variable_map.insert(arg_name.clone(), var_temp_loc);
         body.push(TacInstr::LoadArg(var_temp_loc, index));
-        index += 1;
     }
     code_env.var_map_list.push(this_scopes_variable_map);
 
@@ -147,12 +145,12 @@ fn generate_function_tac(function: &Function) -> TacFunc {
     // insert return 0 if no return is present (or exit function call in main function)
     let mut need_to_insert_return = true;
     if !body.is_empty() {
-        if let TacInstr::Call(func_name, _, _) = body.get(body.len() - 1).unwrap() {
+        if let TacInstr::Call(func_name, _, _) = body.last().unwrap() {
             if func_name == &"exit".to_owned() {
                 need_to_insert_return = false;
             }
         }
-        if let TacInstr::Return(_) = body.get(body.len() - 1).unwrap() {
+        if let TacInstr::Return(_) = body.last().unwrap() {
             need_to_insert_return = false;
         }
     }
@@ -211,10 +209,7 @@ fn generate_statement_tac(statement: &Statement, code_env: &mut CodeEnv) -> Vec<
         Statement::Empty => {
             vec![]
         }
-        Statement::CompoundStmt(stmts) => {
-            let result = generate_compound_stmt_tac(stmts, code_env);
-            result
-        }
+        Statement::CompoundStmt(stmts) => generate_compound_stmt_tac(stmts, code_env),
         Statement::If(condition, taken, not_taken) => {
             generate_if_statement_tac(condition, taken, not_taken.as_deref(), code_env)
         }
@@ -293,16 +288,16 @@ fn generate_declaration_tac(
                     let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
                     this_scopes_variable_map.insert(var_name.clone(), var_temp_loc);
 
-                    return result;
+                    result
                 }
                 None => {
                     let var_map_list = &mut code_env.var_map_list;
                     let last_elem_index = var_map_list.len() - 1;
                     let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
                     this_scopes_variable_map.insert(var_name.clone(), var_temp_loc);
-                    return Vec::new();
+                    Vec::new()
                 }
-            };
+            }
         }
         VarType::Arr(inner_type, num_elements) => {
             let var_map_list = &mut code_env.var_map_list;

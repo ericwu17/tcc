@@ -57,7 +57,7 @@ fn parse_type_declaration(mut tokens: VecDeque<Token>, location: SourcePtr) -> (
     }
 
     loop {
-        if tokens.len() == 0 {
+        if tokens.is_empty() {
             err_display("expected identifier name", location)
         } else if tokens.len() == 1 {
             match tokens.pop_back() {
@@ -80,9 +80,9 @@ fn parse_type_declaration(mut tokens: VecDeque<Token>, location: SourcePtr) -> (
         } else if tokens.back() == Some(&Token::CloseBracket) {
             tokens.pop_back();
 
-            let arr_size;
+            let arr_size: usize;
             if let Some(Token::IntLit { val }) = tokens.back() {
-                arr_size = usize::from_str_radix(val, 10).unwrap();
+                arr_size = str::parse(val).unwrap();
                 tokens.pop_back();
 
                 if let Some(Token::OpenBracket) = tokens.pop_back() {

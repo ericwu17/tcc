@@ -158,7 +158,7 @@ pub fn generate_expr_ast(
             break;
         }
     }
-    return expr;
+    expr
 }
 
 fn generate_assignment_expr_ast(
@@ -168,71 +168,57 @@ fn generate_assignment_expr_ast(
 ) -> Expr {
     // ASSIGNMENT IS RIGHT ASSOCIATIVE, so we don't increment the operator precedence.
     let next_expr = generate_expr_ast(tokens, BinOpPrecedenceLevel::Assignment);
-    let expr;
     match curr_token {
-        Token::Op(Op::AssignmentEquals) => {
-            expr = Expr::new(ExprEnum::BinOp(
-                BinOp::Assign,
+        Token::Op(Op::AssignmentEquals) => Expr::new(ExprEnum::BinOp(
+            BinOp::Assign,
+            Box::new(lhs_expr),
+            Box::new(next_expr),
+        )),
+        Token::Op(Op::PlusEquals) => Expr::new(ExprEnum::BinOp(
+            BinOp::Assign,
+            Box::new(lhs_expr.clone()),
+            Box::new(Expr::new(ExprEnum::BinOp(
+                BinOp::Plus,
                 Box::new(lhs_expr),
                 Box::new(next_expr),
-            ));
-        }
-        Token::Op(Op::PlusEquals) => {
-            expr = Expr::new(ExprEnum::BinOp(
-                BinOp::Assign,
-                Box::new(lhs_expr.clone()),
-                Box::new(Expr::new(ExprEnum::BinOp(
-                    BinOp::Plus,
-                    Box::new(lhs_expr),
-                    Box::new(next_expr),
-                ))),
-            ));
-        }
-        Token::Op(Op::MinusEquals) => {
-            expr = Expr::new(ExprEnum::BinOp(
-                BinOp::Assign,
-                Box::new(lhs_expr.clone()),
-                Box::new(Expr::new(ExprEnum::BinOp(
-                    BinOp::Minus,
-                    Box::new(lhs_expr),
-                    Box::new(next_expr),
-                ))),
-            ));
-        }
-        Token::Op(Op::MulEquals) => {
-            expr = Expr::new(ExprEnum::BinOp(
-                BinOp::Assign,
-                Box::new(lhs_expr.clone()),
-                Box::new(Expr::new(ExprEnum::BinOp(
-                    BinOp::Multiply,
-                    Box::new(lhs_expr),
-                    Box::new(next_expr),
-                ))),
-            ));
-        }
-        Token::Op(Op::DivEquals) => {
-            expr = Expr::new(ExprEnum::BinOp(
-                BinOp::Assign,
-                Box::new(lhs_expr.clone()),
-                Box::new(Expr::new(ExprEnum::BinOp(
-                    BinOp::Divide,
-                    Box::new(lhs_expr),
-                    Box::new(next_expr),
-                ))),
-            ));
-        }
-        Token::Op(Op::ModEquals) => {
-            expr = Expr::new(ExprEnum::BinOp(
-                BinOp::Modulus,
-                Box::new(lhs_expr.clone()),
-                Box::new(Expr::new(ExprEnum::BinOp(
-                    BinOp::Plus,
-                    Box::new(lhs_expr),
-                    Box::new(next_expr),
-                ))),
-            ));
-        }
+            ))),
+        )),
+        Token::Op(Op::MinusEquals) => Expr::new(ExprEnum::BinOp(
+            BinOp::Assign,
+            Box::new(lhs_expr.clone()),
+            Box::new(Expr::new(ExprEnum::BinOp(
+                BinOp::Minus,
+                Box::new(lhs_expr),
+                Box::new(next_expr),
+            ))),
+        )),
+        Token::Op(Op::MulEquals) => Expr::new(ExprEnum::BinOp(
+            BinOp::Assign,
+            Box::new(lhs_expr.clone()),
+            Box::new(Expr::new(ExprEnum::BinOp(
+                BinOp::Multiply,
+                Box::new(lhs_expr),
+                Box::new(next_expr),
+            ))),
+        )),
+        Token::Op(Op::DivEquals) => Expr::new(ExprEnum::BinOp(
+            BinOp::Assign,
+            Box::new(lhs_expr.clone()),
+            Box::new(Expr::new(ExprEnum::BinOp(
+                BinOp::Divide,
+                Box::new(lhs_expr),
+                Box::new(next_expr),
+            ))),
+        )),
+        Token::Op(Op::ModEquals) => Expr::new(ExprEnum::BinOp(
+            BinOp::Modulus,
+            Box::new(lhs_expr.clone()),
+            Box::new(Expr::new(ExprEnum::BinOp(
+                BinOp::Plus,
+                Box::new(lhs_expr),
+                Box::new(next_expr),
+            ))),
+        )),
         _ => unreachable!(),
     }
-    return expr;
 }

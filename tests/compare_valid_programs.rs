@@ -43,7 +43,7 @@ fn test_programs(dir: PathBuf) {
         let tcc_exit_status = Command::new(TCC_DIR)
             .arg(input_file_dir)
             .status()
-            .expect(&format!("tcc could not compile {}", input_file_dir));
+            .unwrap_or_else(|_| panic!("tcc could not compile {}", input_file_dir));
         if !tcc_exit_status.success() {
             panic!(
                 "tcc exited with non-zero exit code {:?}",
@@ -56,7 +56,7 @@ fn test_programs(dir: PathBuf) {
             .args(["-o", GCC_EXEC])
             .arg(input_file_dir)
             .output()
-            .expect(&format!("gcc could not compile {}", input_file_dir));
+            .unwrap_or_else(|_| panic!("gcc could not compile {}", input_file_dir));
 
         let tcc_output = Command::new(TCC_EXEC)
             .output()

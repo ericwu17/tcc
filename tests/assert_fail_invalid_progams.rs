@@ -41,7 +41,7 @@ fn test_programs(dir: PathBuf) {
             .arg(input_file_dir)
             .arg("-n")
             .status()
-            .expect(&format!("tcc could not compile {}", input_file_dir));
+            .unwrap_or_else(|_| panic!("tcc could not compile {}", input_file_dir));
         if tcc_exit_status.success() {
             panic!("tcc succeeded for file {:?}", input_file_dir)
         }

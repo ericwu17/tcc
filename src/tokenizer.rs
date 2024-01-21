@@ -158,7 +158,7 @@ pub fn get_tokens(source_code_contents: String) -> Vec<(Token, SourcePtr)> {
         } else if next_char == '"' {
             let pos = cursor.get_last_pos();
             tokens.push((build_string_literal(&mut cursor), pos));
-        } else if next_char.is_digit(10) {
+        } else if next_char.is_ascii_digit() {
             // handle an integer literal
             let mut val = String::new();
             let mut pos: SourcePtr = cursor.get_last_pos();
@@ -234,7 +234,7 @@ fn convert_str_to_char_int(val: String, pos: SourcePtr) -> String {
             format!("{}", res as i32)
         }
         2 => {
-            if val.chars().nth(0).unwrap() != '\\' {
+            if !val.starts_with('\\') {
                 err_display(
                     "character literal must start with backslash or be 1 character",
                     pos,
