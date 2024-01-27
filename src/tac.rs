@@ -136,7 +136,16 @@ impl<'a> TacGenerator<'a> {
             Statement::Declare(var_name, opt_expr, var_type) => {
                 generate_declaration_tac(self, var_name, opt_expr, var_type);
             }
-            Statement::CompoundStmt(_) => todo!(),
+            Statement::CompoundStmt(stmts) => {
+                let this_scopes_variable_map: HashMap<String, Identifier> = HashMap::new();
+                self.curr_context
+                    .var_map_list
+                    .push(this_scopes_variable_map);
+                for stmt in stmts {
+                    self.consume_statement(stmt);
+                }
+                self.curr_context.var_map_list.pop();
+            }
             Statement::If(_, _, _) => todo!(),
             Statement::While(_, _) => todo!(),
             Statement::For(_, _, _, _) => todo!(),
