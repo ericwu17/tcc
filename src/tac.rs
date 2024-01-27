@@ -187,7 +187,22 @@ impl<'a> TacGenerator<'a> {
                 new_ident
             }
             ExprEnum::Ternary(_, _, _) => todo!(),
-            ExprEnum::FunctionCall(_, _) => todo!(),
+            ExprEnum::FunctionCall(func_name, args) => {
+                let mut arg_idents = Vec::new();
+                for arg_expr in args {
+                    arg_idents.push(self.consume_expr(arg_expr, None));
+                }
+                let arg_idents = arg_idents.iter().map(|id| TacVal::Var(*id)).collect();
+
+                let new_ident = self.get_new_temp_name(size.unwrap_or_default());
+
+                let curr_bb = &mut self.current_output.basic_blocks[curr_bb_index];
+                curr_bb
+                    .instrs
+                    .push(TacBBInstr::Call(new_ident, func_name.clone(), arg_idents));
+
+                new_ident
+            }
             ExprEnum::Deref(_) => todo!(),
             ExprEnum::Ref(_) => todo!(),
             ExprEnum::PostfixDec(_) => todo!(),

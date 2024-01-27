@@ -26,7 +26,7 @@ pub enum TacBBInstr {
     BinOp(Identifier, TacVal, TacVal, BinOp),
     UnOp(Identifier, TacVal, UnOp),
     Copy(Identifier, TacVal),
-    Call(String, Vec<TacVal>, Option<Identifier>),
+    Call(Identifier, String, Vec<TacVal>), // (return value identifier, function name, args)
 }
 
 // SSA form coming soon!
@@ -61,16 +61,16 @@ impl TacBasicBlock {
 
 impl TacBBInstr {
     pub fn get_written_identifier(&self) -> Option<Identifier> {
-        let mut result = match self {
+        let result = match self {
             TacBBInstr::BinOp(ident, _, _, _)
             | TacBBInstr::UnOp(ident, _, _)
             | TacBBInstr::Copy(ident, _)
             | TacBBInstr::Deref(ident, _)
             | TacBBInstr::Ref(ident, _)
             | TacBBInstr::MemChunk(ident, _, _)
-            | TacBBInstr::StaticStrPtr(ident, _) => Some(*ident),
+            | TacBBInstr::StaticStrPtr(ident, _)
+            | TacBBInstr::Call(ident, _, _) => Some(*ident),
             TacBBInstr::DerefStore(_, _) => None,
-            TacBBInstr::Call(_, _, optional_ident) => *optional_ident,
         };
         result
     }
@@ -96,7 +96,7 @@ impl TacBBInstr {
             | TacBBInstr::Ref(_, _)
             | TacBBInstr::StaticStrPtr(_, _) => {}
 
-            TacBBInstr::Call(_, args, _) => {
+            TacBBInstr::Call(_, _, args) => {
                 for arg in args {
                     if let TacVal::Var(ident) = arg {
                         result.push(*ident);
@@ -123,10 +123,9 @@ impl fmt::Debug for TacBBInstr {
             TacBBInstr::Copy(identifier, val) => {
                 write!(f, "{:?} = {:?}", identifier, val)
             }
-            TacBBInstr::Call(name, args, optional_ident) => match optional_ident {
-                None => write!(f, "call {}({:?})", name, args),
-                Some(ident) => write!(f, "{:?} = call {}({:?})", ident, name, args),
-            },
+            TacBBInstr::Call(ident, name, args) => {
+                write!(f, "{:?} = call {}({:?})", ident, name, args)
+            }
             TacBBInstr::MemChunk(ident, size, _) => {
                 write!(f, "{:?} = alloc({})", ident, size)
             }

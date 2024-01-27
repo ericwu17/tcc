@@ -13,7 +13,7 @@ pub struct TacFunc {
 
 impl fmt::Debug for TacFunc {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Function with name `{:?}\n`", self.name)?;
+        write!(f, "Function with name {:?}\n", self.name)?;
         write!(f, "arguments: {:?}\n", self.args)?;
 
         for (index, bb) in self.basic_blocks.iter().enumerate() {
