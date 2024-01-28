@@ -13,6 +13,7 @@ use crate::parser::Function;
 use crate::parser::{expr_parser::Expr, Program, Statement};
 use crate::types::{VarSize, VarType};
 
+use self::generation::binop::generate_binop_tac;
 use self::generation::declare::generate_declaration_tac;
 use self::tac_func::{BBIdentifier, TacFunc};
 use self::tac_instr::{TacBBInstr, TacBasicBlock, TacTransitionInstr};
@@ -149,7 +150,9 @@ impl<'a> TacGenerator<'a> {
             Statement::If(_, _, _) => todo!(),
             Statement::While(_, _) => todo!(),
             Statement::For(_, _, _, _) => todo!(),
-            Statement::Expr(_) => todo!(),
+            Statement::Expr(expr) => {
+                self.consume_expr(expr, None);
+            }
             Statement::Empty => {}
         }
     }
@@ -180,21 +183,7 @@ impl<'a> TacGenerator<'a> {
 
                 new_ident
             }
-            ExprEnum::BinOp(op, expr1, expr2) => {
-                let ident1 = self.consume_expr(expr1, size);
-                let ident2 = self.consume_expr(expr2, size);
-                let new_ident = self.get_new_temp_name(size.unwrap_or_default());
-
-                let curr_bb = &mut self.current_output.basic_blocks[curr_bb_index];
-                curr_bb.instrs.push(TacBBInstr::BinOp(
-                    new_ident,
-                    TacVal::Var(ident1),
-                    TacVal::Var(ident2),
-                    *op,
-                ));
-
-                new_ident
-            }
+            ExprEnum::BinOp(op, expr1, expr2) => generate_binop_tac(self, *op, expr1, expr2, size),
             ExprEnum::Ternary(_, _, _) => todo!(),
             ExprEnum::FunctionCall(func_name, args) => {
                 let mut arg_idents = Vec::new();
@@ -222,6 +211,10 @@ impl<'a> TacGenerator<'a> {
             ExprEnum::ArrInitExpr(_) => todo!(),
             ExprEnum::StaticStrPtr(_) => todo!(),
         }
+    }
+    pub fn get_curr_bb(&mut self) -> &mut TacBasicBlock {
+        let curr_bb_index = self.curr_context.current_bb;
+        &mut self.current_output.basic_blocks[curr_bb_index]
     }
 
     fn get_new_temp_name(&mut self, size: VarSize) -> Identifier {
