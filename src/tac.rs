@@ -16,6 +16,7 @@ use crate::types::{VarSize, VarType};
 use self::generation::binop::generate_binop_tac;
 use self::generation::declare::generate_declaration_tac;
 use self::generation::if_stmt::generate_if_statement_tac;
+use self::generation::while_loop::generate_while_loop_tac;
 use self::tac_func::{BBIdentifier, TacFunc};
 use self::tac_instr::{TacBBInstr, TacBasicBlock, TacTransitionInstr};
 
@@ -151,7 +152,9 @@ impl<'a> TacGenerator<'a> {
             Statement::If(ctrl_expr, taken, opt_not_taken) => {
                 generate_if_statement_tac(self, ctrl_expr, taken, opt_not_taken.as_deref());
             }
-            Statement::While(_, _) => todo!(),
+            Statement::While(ctrl_expr, loop_body) => {
+                generate_while_loop_tac(self, ctrl_expr, loop_body);
+            }
             Statement::For(_, _, _, _) => todo!(),
             Statement::Expr(expr) => {
                 self.consume_expr(expr, None);
