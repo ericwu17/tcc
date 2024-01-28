@@ -41,86 +41,26 @@ pub const BUILTIN_FUNCTIONS: [FunctionDecl; 5] = [
 ];
 
 const fn generate_putchar_asm() -> &'static str {
-    "
-.putchar:
-  sub rsp, 1
-  mov [rsp], dil
-  mov rsi, rsp
-  mov rdi, 1   ; stdout
-  mov rdx, 1   ; 1 byte
-  mov rax, 1   ; syscall #1 for 'write'
-  syscall
-  add rsp, 1
-  ret
-"
+    // todo:
+    ""
 }
 
 const fn generate_getchar_asm() -> &'static str {
-    "
-.getchar:
-  sub rsp, 4
-  mov rsi, rsp ; a ptr to 'buf'
-  mov rdi, 0   ; stdin
-  mov rdx, 1   ; 1 byte to read
-  mov rax, 0   ; syscall #0 for 'read'
-  syscall
-  test rax, rax          ; check for EOF (rax contains bytes written, returned by syscall)
-  mov eax, [rsp]
-  mov r10d, -1
-  cmovz eax, r10d  ; if at EOF, return -1.
-  add rsp, 4
-  ret
-"
+    // todo:
+    ""
 }
 
 const fn generate_exit_asm() -> &'static str {
-    "
-.exit:
-  mov eax, 231  ; syscall #231 for 'exit_group'
-  syscall
-"
+    // todo:
+    ""
 }
 
 const fn generate_puts_asm() -> &'static str {
-    "
-.puts:
-  mov rdx, 0          ; rdx is the number of bytes to write
-  mov rsi, rdi        ; rsi is ptr to buffer for write syscall
-.begin_puts_loop:
-  mov r9b, [rdi]
-  test r9b, r9b
-  jz .end_puts_loop
-  add rdi, 1
-  add rdx, 1
-  jmp .begin_puts_loop
-.end_puts_loop:
-  mov rdi, 1           ; fd 1 for stdout
-  mov rax, 1           ; syscall 1 for write
-  syscall
-  sub rsp, 1
-  mov byte [rsp], 0x0A ; newline character
-  mov rsi, rsp
-  mov rdi, 1   ; stdout
-  mov rdx, 1   ; 1 byte
-  mov rax, 1   ; syscall 1 for 'write'
-  syscall
-  add rsp, 1
-  ret
-"
+    // todo:
+    ""
 }
 
 const fn generate_strlen_asm() -> &'static str {
-    "
-.strlen:
-  mov rax, 0
-.begin_strlen_loop:
-  mov r9b, [rdi]
-  test r9b, r9b
-  jz .end_strlen_loop
-  add rax, 1
-  add rdi, 1
-  jmp .begin_strlen_loop
-.end_strlen_loop:
-  ret
-"
+    // todo:
+    ""
 }
