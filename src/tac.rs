@@ -15,6 +15,7 @@ use crate::types::{VarSize, VarType};
 
 use self::generation::binop::generate_binop_tac;
 use self::generation::declare::generate_declaration_tac;
+use self::generation::if_stmt::generate_if_statement_tac;
 use self::tac_func::{BBIdentifier, TacFunc};
 use self::tac_instr::{TacBBInstr, TacBasicBlock, TacTransitionInstr};
 
@@ -147,7 +148,9 @@ impl<'a> TacGenerator<'a> {
                 }
                 self.curr_context.var_map_list.pop();
             }
-            Statement::If(_, _, _) => todo!(),
+            Statement::If(ctrl_expr, taken, opt_not_taken) => {
+                generate_if_statement_tac(self, ctrl_expr, taken, opt_not_taken.as_deref());
+            }
             Statement::While(_, _) => todo!(),
             Statement::For(_, _, _, _) => todo!(),
             Statement::Expr(expr) => {
@@ -265,33 +268,6 @@ pub fn generate_tac(mut program: Program) -> Vec<TacFunc> {
     }
 
     tac_funcs
-}
-
-fn generate_compound_stmt_tac(stmts: &Vec<Statement>, code_env: &mut CodeEnv) {
-    // TODO:
-}
-
-fn generate_statement_tac(statement: &Statement, code_env: &mut CodeEnv) {
-    // TODO:
-}
-
-fn resolve_variable_to_temp_name(name: &String, code_env: &CodeEnv) -> Identifier {
-    for var_map in code_env.var_map_list.iter().rev() {
-        if let Some(name) = var_map.get(name) {
-            return *name;
-        }
-    }
-    // unreachable because check_vars should have already checked that each variable was declared properly.
-    unreachable!()
-}
-
-fn generate_if_statement_tac(
-    condition: &Expr,
-    taken: &Statement,
-    not_taken: Option<&Statement>,
-    code_env: &mut CodeEnv,
-) {
-    // TODO:
 }
 
 fn get_expr_size(expr: &Expr) -> Option<VarSize> {

@@ -9,9 +9,9 @@ use super::{tac_func::BBIdentifier, Identifier, TacVal};
 #[derive(Debug, Clone)]
 pub enum TacTransitionInstr {
     Jmp(BBIdentifier),
-    JmpZero {
-        if_zero: BBIdentifier,
+    JmpNotZero {
         if_not_zero: BBIdentifier,
+        if_zero: BBIdentifier,
         conditional_val: TacVal,
     },
     Return(TacVal),
