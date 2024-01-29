@@ -226,6 +226,10 @@ impl<'a> TacGenerator<'a> {
     fn get_new_temp_name(&mut self, size: VarSize) -> Identifier {
         self.curr_context.get_new_temp_name(size)
     }
+
+    pub fn push_instr(&mut self, instr: TacBBInstr) {
+        self.get_curr_bb().instrs.push(instr)
+    }
 }
 
 impl CodeEnv {
