@@ -6,7 +6,7 @@ use crate::{
 };
 
 use super::{tac_func::BBIdentifier, Identifier, TacVal};
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TacTransitionInstr {
     Jmp(BBIdentifier),
     JmpNotZero {
@@ -15,6 +15,11 @@ pub enum TacTransitionInstr {
         conditional_val: TacVal,
     },
     Return(TacVal),
+
+    /// A Null TAC transition instruction is used during the process
+    /// of constructing the TAC. After the TAC is fully constructed there should be none
+    /// Null values remaining.
+    Null,
 }
 #[derive(Clone)]
 pub enum TacBBInstr {
@@ -53,7 +58,7 @@ impl TacBasicBlock {
         // This should be changed by whoever is building upon this basic block.
         TacBasicBlock {
             instrs: Vec::new(),
-            out_instr: TacTransitionInstr::Return(TacVal::Lit(0, VarSize::Dword)),
+            out_instr: TacTransitionInstr::Null,
             id,
         }
     }

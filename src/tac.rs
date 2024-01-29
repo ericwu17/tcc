@@ -14,6 +14,8 @@ use crate::parser::{expr_parser::Expr, Program, Statement};
 use crate::types::{VarSize, VarType};
 
 use self::generation::binop::generate_binop_tac;
+use self::generation::break_stmt::generate_break_stmt_code;
+use self::generation::continue_stmt::generate_continue_stmt_code;
 use self::generation::declare::generate_declaration_tac;
 use self::generation::if_stmt::generate_if_statement_tac;
 use self::generation::while_loop::generate_while_loop_tac;
@@ -45,7 +47,7 @@ impl Identifier {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum TacVal {
     Lit(i64, VarSize),
     Var(Identifier),
@@ -127,14 +129,12 @@ impl<'a> TacGenerator<'a> {
     }
 
     pub fn consume_statement(&mut self, stmt: &Statement) {
-        let curr_bb_index = self.curr_context.current_bb;
         match stmt {
-            Statement::Continue => todo!(),
-            Statement::Break => todo!(),
+            Statement::Continue => generate_continue_stmt_code(self),
+            Statement::Break => generate_break_stmt_code(self),
             Statement::Return(expr) => {
                 let ident = self.consume_expr(expr, None);
-                let curr_bb = &mut self.current_output.basic_blocks[curr_bb_index];
-                curr_bb.out_instr = TacTransitionInstr::Return(TacVal::Var(ident));
+                self.set_curr_bb_out_instr(TacTransitionInstr::Return(TacVal::Var(ident)));
             }
             Statement::Declare(var_name, opt_expr, var_type) => {
                 generate_declaration_tac(self, var_name, opt_expr, var_type);
@@ -164,28 +164,19 @@ impl<'a> TacGenerator<'a> {
     }
 
     pub fn consume_expr(&mut self, expr: &Expr, size: Option<VarSize>) -> Identifier {
-        let curr_bb_index = self.curr_context.current_bb;
-
         match &expr.content {
             ExprEnum::Int(x) => {
                 let var_size = get_expr_size(expr).unwrap_or(size.unwrap_or_default());
                 let ident = self.get_new_temp_name(var_size);
-                let curr_bb = &mut self.current_output.basic_blocks[curr_bb_index];
-                curr_bb
-                    .instrs
-                    .push(TacBBInstr::Copy(ident, TacVal::Lit(*x, var_size)));
+                self.push_instr(TacBBInstr::Copy(ident, TacVal::Lit(*x, var_size)));
+
                 ident
             }
             ExprEnum::Var(var_name) => self.curr_context.resolve_variable_to_temp_name(&var_name),
             ExprEnum::UnOp(op, inner_expr) => {
                 let ident = self.consume_expr(&inner_expr, size);
-
                 let new_ident = self.get_new_temp_name(size.unwrap_or_default());
-
-                let curr_bb = &mut self.current_output.basic_blocks[curr_bb_index];
-                curr_bb
-                    .instrs
-                    .push(TacBBInstr::UnOp(new_ident, TacVal::Var(ident), *op));
+                self.push_instr(TacBBInstr::UnOp(new_ident, TacVal::Var(ident), *op));
 
                 new_ident
             }
@@ -200,10 +191,7 @@ impl<'a> TacGenerator<'a> {
 
                 let new_ident = self.get_new_temp_name(size.unwrap_or_default());
 
-                let curr_bb = &mut self.current_output.basic_blocks[curr_bb_index];
-                curr_bb
-                    .instrs
-                    .push(TacBBInstr::Call(new_ident, func_name.clone(), arg_idents));
+                self.push_instr(TacBBInstr::Call(new_ident, func_name.clone(), arg_idents));
 
                 new_ident
             }
@@ -218,7 +206,7 @@ impl<'a> TacGenerator<'a> {
             ExprEnum::StaticStrPtr(_) => todo!(),
         }
     }
-    pub fn get_curr_bb(&mut self) -> &mut TacBasicBlock {
+    fn get_curr_bb(&mut self) -> &mut TacBasicBlock {
         let curr_bb_index = self.curr_context.current_bb;
         &mut self.current_output.basic_blocks[curr_bb_index]
     }
@@ -228,7 +216,14 @@ impl<'a> TacGenerator<'a> {
     }
 
     pub fn push_instr(&mut self, instr: TacBBInstr) {
+        assert!(self.get_curr_bb().out_instr == TacTransitionInstr::Null);
         self.get_curr_bb().instrs.push(instr)
+    }
+
+    pub fn set_curr_bb_out_instr(&mut self, instr: TacTransitionInstr) {
+        if self.get_curr_bb().out_instr == TacTransitionInstr::Null {
+            self.get_curr_bb().out_instr = instr;
+        }
     }
 }
 

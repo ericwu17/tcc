@@ -26,9 +26,7 @@ pub fn generate_binop_tac(
 
     // TODO: handle addition and subtraction of pointers
 
-    let curr_bb_index = generator.curr_context.current_bb;
-    let curr_bb = &mut generator.current_output.basic_blocks[curr_bb_index];
-    curr_bb.instrs.push(TacBBInstr::BinOp(
+    generator.push_instr(TacBBInstr::BinOp(
         new_ident,
         TacVal::Var(ident1),
         TacVal::Var(ident2),
@@ -47,11 +45,7 @@ fn generate_assignment_tac(generator: &mut TacGenerator, lhs: &Expr, rhs: &Expr)
 
             let ident = generator.consume_expr(rhs, Some(temp_name_of_assignee.get_size()));
 
-            let curr_bb = generator.get_curr_bb();
-
-            curr_bb
-                .instrs
-                .push(TacBBInstr::Copy(temp_name_of_assignee, TacVal::Var(ident)));
+            generator.push_instr(TacBBInstr::Copy(temp_name_of_assignee, TacVal::Var(ident)));
 
             temp_name_of_assignee
         }

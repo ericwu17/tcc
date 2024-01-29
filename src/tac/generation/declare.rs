@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     parser::expr_parser::{BinOp, Expr, ExprEnum},
-    tac::{get_expr_size, get_type_size, tac_instr::TacBBInstr, Identifier, TacGenerator, TacVal},
+    tac::{get_type_size, tac_instr::TacBBInstr, Identifier, TacGenerator, TacVal},
     types::{VarSize, VarType},
 };
 

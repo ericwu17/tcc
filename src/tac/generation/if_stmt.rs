@@ -27,22 +27,21 @@ pub fn generate_if_statement_tac(
     generator.current_output.basic_blocks.push(not_taken_bb);
     generator.current_output.basic_blocks.push(exit_bb);
 
-    let curr_bb = generator.get_curr_bb();
-    curr_bb.out_instr = TacTransitionInstr::JmpNotZero {
+    generator.set_curr_bb_out_instr(TacTransitionInstr::JmpNotZero {
         if_not_zero: taken_bb_id,
         if_zero: not_taken_bb_id,
         conditional_val: TacVal::Var(ctrl_expr_ident),
-    };
+    });
 
     generator.curr_context.current_bb = taken_bb_id;
     generator.consume_statement(taken);
-    generator.get_curr_bb().out_instr = TacTransitionInstr::Jmp(exit_bb_id);
+    generator.set_curr_bb_out_instr(TacTransitionInstr::Jmp(exit_bb_id));
 
     generator.curr_context.current_bb = not_taken_bb_id;
     if let Some(not_taken) = opt_not_taken {
         generator.consume_statement(not_taken);
     }
-    generator.get_curr_bb().out_instr = TacTransitionInstr::Jmp(exit_bb_id);
+    generator.set_curr_bb_out_instr(TacTransitionInstr::Jmp(exit_bb_id));
 
     generator.curr_context.current_bb = exit_bb_id;
 }
