@@ -17,6 +17,7 @@ use self::generation::binop::generate_binop_tac;
 use self::generation::break_stmt::generate_break_stmt_code;
 use self::generation::continue_stmt::generate_continue_stmt_code;
 use self::generation::declare::generate_declaration_tac;
+use self::generation::for_loop::generate_for_loop_tac;
 use self::generation::if_stmt::generate_if_statement_tac;
 use self::generation::while_loop::generate_while_loop_tac;
 use self::tac_func::{BBIdentifier, TacFunc};
@@ -155,7 +156,15 @@ impl<'a> TacGenerator<'a> {
             Statement::While(ctrl_expr, loop_body) => {
                 generate_while_loop_tac(self, ctrl_expr, loop_body);
             }
-            Statement::For(_, _, _, _) => todo!(),
+            Statement::For(init_stmt, ctrl_expr, post_expr, loop_body) => {
+                generate_for_loop_tac(
+                    self,
+                    init_stmt,
+                    ctrl_expr.as_ref(),
+                    post_expr.as_ref(),
+                    loop_body,
+                );
+            }
             Statement::Expr(expr) => {
                 self.consume_expr(expr, None);
             }
@@ -216,8 +225,11 @@ impl<'a> TacGenerator<'a> {
     }
 
     pub fn push_instr(&mut self, instr: TacBBInstr) {
-        assert!(self.get_curr_bb().out_instr == TacTransitionInstr::Null);
-        self.get_curr_bb().instrs.push(instr)
+        if self.get_curr_bb().out_instr == TacTransitionInstr::Null {
+            self.get_curr_bb().instrs.push(instr);
+        } else {
+            println!("WARNING: unreachable expression (ignoring it)");
+        }
     }
 
     pub fn set_curr_bb_out_instr(&mut self, instr: TacTransitionInstr) {
