@@ -204,15 +204,45 @@ impl<'a> TacGenerator<'a> {
 
                 new_ident
             }
-            ExprEnum::Deref(_) => todo!(),
-            ExprEnum::Ref(_) => todo!(),
+            ExprEnum::Deref(inner_expr) => {
+                let inner_expr_type: &VarType = &inner_expr.type_.clone().unwrap();
+                let pointee_size = get_pointee_size(inner_expr_type);
+                let pointee_type = get_pointee_type(inner_expr_type);
+
+                let res_ident = self.consume_expr(inner_expr, pointee_size);
+                let final_temp_name = self.get_new_temp_name(VarSize::Quad); // a pointer is a quad
+                if let VarType::Arr(_, _) = pointee_type {
+                    // if we have a pointer to an array, then dereferencing should  give a pointer _into_ the array (pointing at first element).
+                    self.push_instr(TacBBInstr::Copy(final_temp_name, TacVal::Var(res_ident)));
+                } else {
+                    self.push_instr(TacBBInstr::Deref(final_temp_name, res_ident));
+                }
+
+                final_temp_name
+            }
+            ExprEnum::Ref(inner_expr) => match &inner_expr.content {
+                ExprEnum::Deref(inner) => self.consume_expr(inner, size),
+                ExprEnum::Var(var_name) => {
+                    let final_temp_name = self.get_new_temp_name(VarSize::Quad); // a pointer is a quad
+                    self.push_instr(TacBBInstr::Ref(
+                        final_temp_name,
+                        self.curr_context.resolve_variable_to_temp_name(var_name),
+                    ));
+                    final_temp_name
+                }
+                _ => unreachable!(),
+            },
             ExprEnum::PostfixDec(_) => todo!(),
             ExprEnum::PostfixInc(_) => todo!(),
             ExprEnum::PrefixDec(_) => todo!(),
             ExprEnum::PrefixInc(_) => todo!(),
-            ExprEnum::Sizeof(_) => todo!(),
-            ExprEnum::ArrInitExpr(_) => todo!(),
-            ExprEnum::StaticStrPtr(_) => todo!(),
+            ExprEnum::StaticStrPtr(str_val) => {
+                let ident = self.get_new_temp_name(VarSize::Quad); // a pointer is a quad
+                self.push_instr(TacBBInstr::StaticStrPtr(ident, str_val.clone()));
+                ident
+            }
+            ExprEnum::Sizeof(_) => unreachable!(), // sizeof should have been replaced by int literal by check_types
+            ExprEnum::ArrInitExpr(_) => unreachable!(), // ArrInitExpr should only appear in array initializations
         }
     }
     fn get_curr_bb(&mut self) -> &mut TacBasicBlock {
@@ -300,5 +330,19 @@ fn get_type_size(t: &VarType) -> VarSize {
         4 => VarSize::Dword,
         8 => VarSize::Quad,
         _ => unreachable!(),
+    }
+}
+
+fn get_pointee_size(t: &VarType) -> Option<VarSize> {
+    match t {
+        VarType::Ptr(inner) | VarType::Arr(inner, _) => Some(get_type_size(inner)),
+        VarType::Fund(_) => unreachable!(), // this function should only be called with a type of pointer or array
+    }
+}
+
+fn get_pointee_type(t: &VarType) -> VarType {
+    match t {
+        VarType::Ptr(inner) | VarType::Arr(inner, _) => *inner.clone(),
+        VarType::Fund(_) => unreachable!(), // this function should only be called with a type of pointer or array
     }
 }
