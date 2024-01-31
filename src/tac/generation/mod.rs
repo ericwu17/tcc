@@ -5,4 +5,5 @@ pub mod continue_stmt;
 pub mod declare;
 pub mod for_loop;
 pub mod if_stmt;
+pub mod ternary;
 pub mod while_loop;

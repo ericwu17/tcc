@@ -19,6 +19,7 @@ use self::generation::continue_stmt::generate_continue_stmt_code;
 use self::generation::declare::generate_declaration_tac;
 use self::generation::for_loop::generate_for_loop_tac;
 use self::generation::if_stmt::generate_if_statement_tac;
+use self::generation::ternary::generate_ternary_statement_tac;
 use self::generation::while_loop::generate_while_loop_tac;
 use self::tac_func::{BBIdentifier, TacFunc};
 use self::tac_instr::{TacBBInstr, TacBasicBlock, TacTransitionInstr};
@@ -190,7 +191,9 @@ impl<'a> TacGenerator<'a> {
                 new_ident
             }
             ExprEnum::BinOp(op, expr1, expr2) => generate_binop_tac(self, *op, expr1, expr2, size),
-            ExprEnum::Ternary(_, _, _) => todo!(),
+            ExprEnum::Ternary(ctrl_expr, expr_true, expr_false) => {
+                generate_ternary_statement_tac(self, ctrl_expr, expr_true, expr_false, size)
+            }
             ExprEnum::FunctionCall(func_name, args) => {
                 let mut arg_idents = Vec::new();
                 for arg_expr in args {

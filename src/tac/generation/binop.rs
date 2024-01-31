@@ -13,6 +13,7 @@ pub fn generate_binop_tac(
 ) -> Identifier {
     if op == BinOp::LogicalAnd || op == BinOp::LogicalOr {
         todo!()
+        // return generate_short_circuiting_tac(generator, op, expr1, expr2, size);
     }
 
     if op == BinOp::Assign {
