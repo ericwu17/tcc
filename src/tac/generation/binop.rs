@@ -4,6 +4,8 @@ use crate::{
     types::{VarSize, VarType},
 };
 
+use super::short_circuiting::generate_short_circuiting_tac;
+
 pub fn generate_binop_tac(
     generator: &mut TacGenerator,
     op: BinOp,
@@ -12,8 +14,7 @@ pub fn generate_binop_tac(
     size: Option<VarSize>,
 ) -> Identifier {
     if op == BinOp::LogicalAnd || op == BinOp::LogicalOr {
-        todo!()
-        // return generate_short_circuiting_tac(generator, op, expr1, expr2, size);
+        return generate_short_circuiting_tac(generator, op.into(), expr1, expr2);
     }
 
     if op == BinOp::Assign {
