@@ -128,6 +128,17 @@ impl<'a> TacGenerator<'a> {
             self.consume_statement(stmt);
         }
 
+        for tac_bb in &mut self.current_output.basic_blocks {
+            // if a function does not end in a return, then the compiler injects "return 0;"
+            if tac_bb.out_instr == TacTransitionInstr::Null {
+                println!(
+                    "inserting a return 0 instruction for function {}",
+                    self.current_output.name
+                );
+                tac_bb.out_instr = TacTransitionInstr::Return(TacVal::Lit(0, VarSize::Quad));
+            }
+        }
+
         self.current_output
     }
 

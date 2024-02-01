@@ -1,9 +1,6 @@
 use std::fmt;
 
-use crate::{
-    parser::expr_parser::{BinOp, UnOp},
-    types::VarSize,
-};
+use crate::parser::expr_parser::{BinOp, UnOp};
 
 use super::{tac_func::BBIdentifier, Identifier, TacVal};
 #[derive(Debug, Clone, PartialEq, Eq)]
