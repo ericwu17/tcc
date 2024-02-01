@@ -19,6 +19,7 @@ use self::generation::continue_stmt::generate_continue_stmt_code;
 use self::generation::declare::generate_declaration_tac;
 use self::generation::for_loop::generate_for_loop_tac;
 use self::generation::if_stmt::generate_if_statement_tac;
+use self::generation::prefix_postfix_inc_dec::{gen_prefix_postfix_inc_dec_tac, PrefixPostfixOp};
 use self::generation::ternary::generate_ternary_statement_tac;
 use self::generation::while_loop::generate_while_loop_tac;
 use self::tac_func::{BBIdentifier, TacFunc};
@@ -235,10 +236,18 @@ impl<'a> TacGenerator<'a> {
                 }
                 _ => unreachable!(),
             },
-            ExprEnum::PostfixDec(_) => todo!(),
-            ExprEnum::PostfixInc(_) => todo!(),
-            ExprEnum::PrefixDec(_) => todo!(),
-            ExprEnum::PrefixInc(_) => todo!(),
+            ExprEnum::PostfixDec(expr) => {
+                gen_prefix_postfix_inc_dec_tac(self, expr, PrefixPostfixOp::PostfixDec)
+            }
+            ExprEnum::PostfixInc(expr) => {
+                gen_prefix_postfix_inc_dec_tac(self, expr, PrefixPostfixOp::PostfixInc)
+            }
+            ExprEnum::PrefixDec(expr) => {
+                gen_prefix_postfix_inc_dec_tac(self, expr, PrefixPostfixOp::PrefixDec)
+            }
+            ExprEnum::PrefixInc(expr) => {
+                gen_prefix_postfix_inc_dec_tac(self, expr, PrefixPostfixOp::PrefixInc)
+            }
             ExprEnum::StaticStrPtr(str_val) => {
                 let ident = self.get_new_temp_name(VarSize::Quad); // a pointer is a quad
                 self.push_instr(TacBBInstr::StaticStrPtr(ident, str_val.clone()));
