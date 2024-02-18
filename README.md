@@ -19,10 +19,14 @@ Implemented features include:
 
 Future plans include:
 
-- more efficient code using techniques such as register allocation, dead code elimination, loop optimizations...
+- using riscv instead of x86 (see the riscv branch)
+- more efficient code using some techniques such as:
+  - register allocation
+  - constant propagation + dead code elimination
+  - strength reduction
+  - tail recursion optimization
+  - others???
 - C structs
-- `malloc()` and `free()` (I might want to implement these in C code, so this might involve making my own subset of the C standard library)
-- floats and doubles!
 
 The asm output is generated in the file `out.asm` which is ignored by git.
 
@@ -52,8 +56,9 @@ I have found many links helpful while writing this compiler:
 
 - Nora Sandler's blog on writing a C compiler using OCaml: https://norasandler.com/2017/11/29/Write-a-Compiler.html
 - A YouTube series by Pixeled about creating a compiler using C++: https://www.youtube.com/watch?v=vcSijrRsrY0
+- This post explaining SSA form: https://blog.yossarian.net/2020/10/23/Understanding-static-single-assignment-forms
 
-These references have helped me learn about parsing strategies, and have motivated me to continue this project.
+These references have helped me learn about creating compilers, and have motivated me to continue this project.
 
 ## Example program compiled with tcc
 
