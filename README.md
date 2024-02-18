@@ -52,8 +52,9 @@ I have found many links helpful while writing this compiler:
 
 - Nora Sandler's blog on writing a C compiler using OCaml: https://norasandler.com/2017/11/29/Write-a-Compiler.html
 - A YouTube series by Pixeled about creating a compiler using C++: https://www.youtube.com/watch?v=vcSijrRsrY0
+- This post explaining SSA form: https://blog.yossarian.net/2020/10/23/Understanding-static-single-assignment-forms
 
-These references have helped me learn about parsing strategies, and have motivated me to continue this project.
+These references have helped me learn about creating compilers, and have motivated me to continue this project.
 
 ## Example program compiled with tcc
 
