@@ -31,18 +31,18 @@ pub enum TacBBInstr {
     Call(Identifier, String, Vec<TacVal>), // (return value identifier, function name, args)
 }
 
-// SSA form coming soon!
-// pub struct PhiInstr(
-//     Identifier,
-//     HashMap<BBIdentifier, Identifier>, // The HashMap key represents the last basic block, and the identifier is which identifier to "take" for the phi function
-// );
+#[derive(Debug, Clone)]
+pub struct PhiInstr(
+    pub Identifier,
+    pub Vec<(BBIdentifier, Identifier)>, // The last basic block, and which identifier to "take" for the phi function
+);
 
 /// A `TacBasicBlock` represents a chain of instructions which will be executed in order,
 /// uninterrupted by branches.
 /// A basic block always ends with a branch or a return.
 #[derive(Debug, Clone)]
 pub struct TacBasicBlock {
-    // phi_instrs: Vec<PhiInstr>, TODO: After implementing the basic blocks in this format, implement SSA form.
+    pub phi_instrs: Vec<PhiInstr>,
     pub instrs: Vec<TacBBInstr>,
     pub out_instr: TacTransitionInstr,
     /// id corresponds to the basic block's index in the function array.
@@ -51,9 +51,10 @@ pub struct TacBasicBlock {
 
 impl TacBasicBlock {
     pub fn new(id: BBIdentifier) -> Self {
-        // When initializing a basic block, we will temporarily make the out_instr "return 0".
+        // When initializing a basic block, we will temporarily make the out_instr Null.
         // This should be changed by whoever is building upon this basic block.
         TacBasicBlock {
+            phi_instrs: Vec::new(),
             instrs: Vec::new(),
             out_instr: TacTransitionInstr::Null,
             id,

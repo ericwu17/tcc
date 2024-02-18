@@ -51,10 +51,9 @@ fn generate_assignment_tac(generator: &mut TacGenerator, lhs: &Expr, rhs: &Expr)
                 .resolve_variable_to_temp_name(var_name);
 
             let ident = generator.consume_expr(rhs, Some(temp_name_of_assignee.get_size()));
+            generator.update_ident(var_name, ident);
 
-            generator.push_instr(TacBBInstr::Copy(temp_name_of_assignee, TacVal::Var(ident)));
-
-            temp_name_of_assignee
+            ident
         }
         ExprEnum::Deref(inner) => {
             let lhs_ident = generator.consume_expr(inner, Some(VarSize::Quad));

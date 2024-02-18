@@ -75,8 +75,7 @@ impl fmt::Debug for TacVal {
 }
 
 pub struct CodeEnv {
-    /// a list of maps, one for each source code scope level, mapping variable names to temporary storage names
-    pub var_map_list: Vec<HashMap<String, Identifier>>,
+    pub var_map: HashMap<String, Identifier>,
 
     /// A way to identify the current basic block being modified.
     pub current_bb: BBIdentifier,
@@ -106,7 +105,7 @@ impl<'a> TacGenerator<'a> {
             this_scopes_variable_map.insert(arg_name.clone(), var_temp_loc);
             args.push((var_temp_loc, arg_type.clone()));
         }
-        code_env.var_map_list.push(this_scopes_variable_map);
+        code_env.var_map = this_scopes_variable_map;
 
         let unfinished_bb = TacBasicBlock::new(0);
 
@@ -155,13 +154,10 @@ impl<'a> TacGenerator<'a> {
             }
             Statement::CompoundStmt(stmts) => {
                 let this_scopes_variable_map: HashMap<String, Identifier> = HashMap::new();
-                self.curr_context
-                    .var_map_list
-                    .push(this_scopes_variable_map);
+
                 for stmt in stmts {
                     self.consume_statement(stmt);
                 }
-                self.curr_context.var_map_list.pop();
             }
             Statement::If(ctrl_expr, taken, opt_not_taken) => {
                 generate_if_statement_tac(self, ctrl_expr, taken, opt_not_taken.as_deref());
@@ -290,12 +286,16 @@ impl<'a> TacGenerator<'a> {
             self.get_curr_bb().out_instr = instr;
         }
     }
+
+    pub fn update_ident(&mut self, var_name: &str, ident: Identifier) {
+        self.curr_context.update_ident(var_name, ident);
+    }
 }
 
 impl CodeEnv {
     pub fn new() -> Self {
         CodeEnv {
-            var_map_list: Vec::new(),
+            var_map: HashMap::new(),
             current_bb: 0,
             loop_label_end: None,
             loop_label_begin: None,
@@ -309,13 +309,30 @@ impl CodeEnv {
         Identifier(n, size)
     }
     pub fn resolve_variable_to_temp_name(&self, name: &str) -> Identifier {
-        for var_map in self.var_map_list.iter().rev() {
-            if let Some(name) = var_map.get(name) {
-                return *name;
-            }
+        if let Some(name) = self.var_map.get(name) {
+            return *name;
         }
         // unreachable because check_vars should have already checked that each variable was declared properly.
-        panic!("CodeEnv tried to resolve a bad variable name")
+        unreachable!("CodeEnv tried to resolve a bad variable name")
+    }
+    pub fn update_ident(&mut self, var_name: &str, ident: Identifier) {
+        if self.var_map.keys().any(|x| x == var_name) {
+            self.var_map.insert(var_name.to_owned(), ident);
+            return;
+        }
+
+        panic!("error: tcc tried to update an indent that wasn't found");
+    }
+
+    pub fn get_var_map(&self) -> &HashMap<String, Identifier> {
+        &self.var_map
+    }
+    pub fn get_var_map_mut(&mut self) -> &mut HashMap<String, Identifier> {
+        &mut self.var_map
+    }
+
+    pub fn restore_var_map(&mut self, map: HashMap<String, Identifier>) {
+        self.var_map = map;
     }
 }
 

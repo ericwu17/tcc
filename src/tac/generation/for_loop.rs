@@ -30,12 +30,6 @@ pub fn generate_for_loop_tac(
     });
 
     // INITIALIZE SCOPE FOR LOOP HEADER
-    let this_scopes_variable_map: HashMap<String, Identifier> = HashMap::new();
-    generator
-        .curr_context
-        .var_map_list
-        .push(this_scopes_variable_map);
-
     generator.consume_statement(init_stmt);
 
     // INITIALIZE BASIC BLOCKS
@@ -86,7 +80,4 @@ pub fn generate_for_loop_tac(
 
     // SET GENERATOR TO EXIT
     generator.curr_context.current_bb = exit_bb_id;
-
-    // REMOVE THE SCOPE OF THE LOOP HEADER
-    generator.curr_context.var_map_list.pop();
 }

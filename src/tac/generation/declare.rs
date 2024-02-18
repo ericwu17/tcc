@@ -14,10 +14,8 @@ pub fn generate_declaration_tac(
 ) {
     match t {
         VarType::Fund(_) | VarType::Ptr(_) => {
-            let var_map_list = &mut generator.curr_context.var_map_list;
-            let last_elem_index = var_map_list.len() - 1;
-            let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
-            if this_scopes_variable_map.get(var_name).is_some() {
+            let map = generator.curr_context.get_var_map_mut();
+            if map.get(var_name).is_some() {
                 panic!(
                     "doubly declared variable (should have been caught by check_vars): {}",
                     var_name
@@ -28,27 +26,20 @@ pub fn generate_declaration_tac(
                 Some(expr) => {
                     let result = generator.consume_expr(expr, Some(get_type_size(t)));
 
-                    let var_map_list = &mut generator.curr_context.var_map_list;
-                    let last_elem_index = var_map_list.len() - 1;
-                    let this_scopes_variable_map: &mut HashMap<String, Identifier> =
-                        var_map_list.get_mut(last_elem_index).unwrap();
-                    this_scopes_variable_map.insert(var_name.clone(), result);
+                    let map = generator.curr_context.get_var_map_mut();
+                    map.insert(var_name.clone(), result);
                 }
                 None => {
                     let var_temp_loc = generator.get_new_temp_name(get_type_size(t));
-                    let var_map_list = &mut generator.curr_context.var_map_list;
-                    let last_elem_index = var_map_list.len() - 1;
-                    let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
-                    this_scopes_variable_map.insert(var_name.clone(), var_temp_loc);
+                    let map = generator.curr_context.get_var_map_mut();
+                    map.insert(var_name.clone(), var_temp_loc);
                 }
             }
         }
         VarType::Arr(inner_type, num_elements) => {
             let arr_ptr_identifier = generator.get_new_temp_name(VarSize::Quad);
-            let var_map_list = &mut generator.curr_context.var_map_list;
-            let last_elem_index = var_map_list.len() - 1;
-            let this_scopes_variable_map = var_map_list.get_mut(last_elem_index).unwrap();
-            this_scopes_variable_map.insert(var_name.clone(), arr_ptr_identifier);
+            let map = generator.curr_context.get_var_map_mut();
+            map.insert(var_name.clone(), arr_ptr_identifier);
 
             let num_bytes = inner_type.num_bytes() * num_elements;
             match opt_value {
