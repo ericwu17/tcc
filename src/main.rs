@@ -1,4 +1,4 @@
-#![allow(dead_code, unused_variables)] // TODO: remove this
+#![allow(dead_code)] // TODO: remove this
 mod codegen;
 mod errors;
 mod parser;

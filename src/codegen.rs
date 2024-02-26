@@ -10,11 +10,11 @@ pub struct RiscvFunc {
 }
 
 /// generates the code in risc-v format
-pub fn generate_rv_code(ir: &[TacFunc]) -> Vec<RiscvFunc> {
+pub fn generate_rv_code(_ir: &[TacFunc]) -> Vec<RiscvFunc> {
     Vec::new()
 }
 
-pub fn generate_asm_string(code: &[RiscvFunc]) -> String {
+pub fn generate_asm_string(_code: &[RiscvFunc]) -> String {
     ".global _start
 helloworld:
     .ascii \"Hello World\\n\"

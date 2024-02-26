@@ -2,7 +2,7 @@ use crate::{
     parser::expr_parser::Expr,
     tac::{
         tac_func::BBIdentifier,
-        tac_instr::{TacBBInstr, TacBasicBlock, TacTransitionInstr},
+        tac_instr::{PhiInstr, TacBasicBlock, TacTransitionInstr},
         Identifier, TacGenerator, TacVal,
     },
     types::VarSize,
@@ -39,15 +39,16 @@ pub fn generate_ternary_statement_tac(
 
     generator.curr_context.current_bb = true_bb_id;
     let ident_true = generator.consume_expr(expr_true, None);
-    generator.push_instr(TacBBInstr::Copy(out_ident, TacVal::Var(ident_true)));
     generator.set_curr_bb_out_instr(TacTransitionInstr::Jmp(exit_bb_id));
 
     generator.curr_context.current_bb = false_bb_id;
     let ident_false = generator.consume_expr(expr_false, None);
-    generator.push_instr(TacBBInstr::Copy(out_ident, TacVal::Var(ident_false)));
     generator.set_curr_bb_out_instr(TacTransitionInstr::Jmp(exit_bb_id));
 
     generator.curr_context.current_bb = exit_bb_id;
-
+    generator.get_curr_bb().phi_instrs.push(PhiInstr(
+        out_ident,
+        vec![(true_bb_id, ident_true), (false_bb_id, ident_false)],
+    ));
     out_ident
 }

@@ -153,8 +153,6 @@ impl<'a> TacGenerator<'a> {
                 generate_declaration_tac(self, var_name, opt_expr, var_type);
             }
             Statement::CompoundStmt(stmts) => {
-                let this_scopes_variable_map: HashMap<String, Identifier> = HashMap::new();
-
                 for stmt in stmts {
                     self.consume_statement(stmt);
                 }
