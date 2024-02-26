@@ -64,7 +64,8 @@ impl TacBasicBlock {
 
 impl TacBBInstr {
     pub fn get_written_identifier(&self) -> Option<Identifier> {
-        let result = match self {
+        
+        match self {
             TacBBInstr::BinOp(ident, _, _, _)
             | TacBBInstr::UnOp(ident, _, _)
             | TacBBInstr::Copy(ident, _)
@@ -74,8 +75,7 @@ impl TacBBInstr {
             | TacBBInstr::StaticStrPtr(ident, _)
             | TacBBInstr::Call(ident, _, _) => Some(*ident),
             TacBBInstr::DerefStore(_, _) => None,
-        };
-        result
+        }
     }
 
     pub fn get_read_identifiers(&self) -> Vec<Identifier> {

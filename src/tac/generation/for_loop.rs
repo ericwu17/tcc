@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     parser::{
         expr_parser::{Expr, ExprEnum},
@@ -8,7 +6,7 @@ use crate::{
     tac::{
         tac_func::BBIdentifier,
         tac_instr::{TacBasicBlock, TacTransitionInstr},
-        Identifier, TacGenerator, TacVal,
+        TacGenerator, TacVal,
     },
 };
 

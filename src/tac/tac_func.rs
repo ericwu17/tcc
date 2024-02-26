@@ -13,12 +13,12 @@ pub struct TacFunc {
 
 impl fmt::Debug for TacFunc {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Function with name {:?}\n", self.name)?;
-        write!(f, "arguments: {:?}\n", self.args)?;
+        writeln!(f, "Function with name {:?}", self.name)?;
+        writeln!(f, "arguments: {:?}", self.args)?;
 
         for (index, bb) in self.basic_blocks.iter().enumerate() {
-            write!(f, "Basic block {:?}\n", index)?;
-            write!(f, "{:?}\n", bb)?;
+            writeln!(f, "Basic block {:?}", index)?;
+            writeln!(f, "{:?}", bb)?;
         }
 
         Ok(())

@@ -190,9 +190,9 @@ impl<'a> TacGenerator<'a> {
 
                 ident
             }
-            ExprEnum::Var(var_name) => self.curr_context.resolve_variable_to_temp_name(&var_name),
+            ExprEnum::Var(var_name) => self.curr_context.resolve_variable_to_temp_name(var_name),
             ExprEnum::UnOp(op, inner_expr) => {
-                let ident = self.consume_expr(&inner_expr, size);
+                let ident = self.consume_expr(inner_expr, size);
                 let new_ident = self.get_new_temp_name(size.unwrap_or_default());
                 self.push_instr(TacBBInstr::UnOp(new_ident, TacVal::Var(ident), *op));
 
