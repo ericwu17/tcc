@@ -7,11 +7,12 @@ mod tokenizer;
 mod types;
 
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Write};
 
 use std::process::Command;
 
 use clap::Parser;
+use codegen::{generate_asm_string, generate_rv_code};
 use errors::check_funcs::check_funcs;
 use errors::check_types::check_types;
 use errors::check_vars::check_vars;
@@ -63,31 +64,30 @@ fn main() {
 
     let tac_ir = generate_tac(program_ast);
     if cli.debug {
-        for tac_func in tac_ir {
+        for tac_func in &tac_ir {
             println!("{:?}", tac_func);
         }
     }
 
-    // let x86_code = generate_x86_code(&tac_ir);
-    // if cli.debug {
-    //     // dbg!(&x86_code);
-    // }
+    let rv_code = generate_rv_code(&tac_ir);
+    if cli.debug {
+        dbg!(&rv_code);
+    }
 
-    // let asm_code = generate_program_asm(&x86_code);
+    let asm_code = generate_asm_string(&rv_code);
 
-    // File::create(ASM_FILE_NAME)
-    //     .expect("error creating ASM output file.")
-    //     .write_all(asm_code.as_bytes())
-    //     .expect("error writing output to ASM output file.");
+    File::create(ASM_FILE_NAME)
+        .expect("error creating ASM output file.")
+        .write_all(asm_code.as_bytes())
+        .expect("error writing output to ASM output file.");
 
-    // if !no_assemble {
-    //     assemble_and_link();
-    // }
+    if !no_assemble {
+        assemble_and_link();
+    }
 }
 
 fn assemble_and_link() {
-    let output = Command::new("nasm")
-        .args(["-g", "-f", "elf64"])
+    let output = Command::new("riscv64-unknown-elf-as")
         .arg(ASM_FILE_NAME)
         .args(["-o", OBJ_FILE_NAME])
         .output()
@@ -100,7 +100,7 @@ fn assemble_and_link() {
         )
     }
 
-    let output = Command::new("ld")
+    let output = Command::new("riscv64-unknown-elf-ld")
         .arg(OBJ_FILE_NAME)
         .args(["-o", EXEC_FILE_NAME])
         .output()
