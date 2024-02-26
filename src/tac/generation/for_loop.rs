@@ -17,6 +17,9 @@ pub fn generate_for_loop_tac(
     post_expr: Option<&Expr>,
     loop_body: &Statement,
 ) {
+    // TODO: ensure that this code generates for loop code which
+    // satisfies static-single-assignment rules!!!! (important if I want the compiler to handle for loops properly)
+
     // REPLACE LOOP EXPRESSIONS WITH DEFAULT VALUES
     let ctrl_expr = ctrl_expr.unwrap_or(&Expr {
         content: ExprEnum::Int(1),

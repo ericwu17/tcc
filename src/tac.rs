@@ -269,6 +269,10 @@ impl<'a> TacGenerator<'a> {
         &mut self.current_output.basic_blocks[curr_bb_index]
     }
 
+    fn get_bb_by_id(&mut self, index: usize) -> &mut TacBasicBlock {
+        &mut self.current_output.basic_blocks[index]
+    }
+
     fn get_new_temp_name(&mut self, size: VarSize) -> Identifier {
         self.curr_context.get_new_temp_name(size)
     }

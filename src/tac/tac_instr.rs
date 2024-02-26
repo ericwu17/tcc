@@ -60,11 +60,16 @@ impl TacBasicBlock {
             id,
         }
     }
+
+    pub fn update_ident(&mut self, old: Identifier, new: Identifier) {
+        for instr in self.instrs.iter_mut() {
+            instr.update_ident(old, new);
+        }
+    }
 }
 
 impl TacBBInstr {
     pub fn get_written_identifier(&self) -> Option<Identifier> {
-        
         match self {
             TacBBInstr::BinOp(ident, _, _, _)
             | TacBBInstr::UnOp(ident, _, _)
@@ -95,9 +100,7 @@ impl TacBBInstr {
                 }
             }
 
-            TacBBInstr::MemChunk(_, _, _)
-            | TacBBInstr::Ref(_, _)
-            | TacBBInstr::StaticStrPtr(_, _) => {}
+            TacBBInstr::MemChunk(_, _, _) | TacBBInstr::StaticStrPtr(_, _) => {}
 
             TacBBInstr::Call(_, _, args) => {
                 for arg in args {
@@ -106,11 +109,52 @@ impl TacBBInstr {
                     }
                 }
             }
-            TacBBInstr::Deref(_, ident) => {
+            TacBBInstr::Deref(_, ident) | TacBBInstr::Ref(_, ident) => {
                 result.push(*ident);
             }
         }
         result
+    }
+
+    pub fn get_read_identifiers_mut(&mut self) -> Vec<&mut Identifier> {
+        let mut result = Vec::new();
+        match self {
+            TacBBInstr::BinOp(_, v1, v2, _) => {
+                if let TacVal::Var(ident) = v1 {
+                    result.push(ident);
+                }
+                if let TacVal::Var(ident) = v2 {
+                    result.push(ident);
+                }
+            }
+            TacBBInstr::UnOp(_, v, _) | TacBBInstr::Copy(_, v) | TacBBInstr::DerefStore(_, v) => {
+                if let TacVal::Var(ident) = v {
+                    result.push(ident);
+                }
+            }
+
+            TacBBInstr::MemChunk(_, _, _) | TacBBInstr::StaticStrPtr(_, _) => {}
+
+            TacBBInstr::Call(_, _, args) => {
+                for arg in args {
+                    if let TacVal::Var(ident) = arg {
+                        result.push(ident);
+                    }
+                }
+            }
+            TacBBInstr::Deref(_, ident) | TacBBInstr::Ref(_, ident) => {
+                result.push(ident);
+            }
+        }
+        result
+    }
+
+    pub fn update_ident(&mut self, old: Identifier, new: Identifier) {
+        for ident in self.get_read_identifiers_mut() {
+            if *ident == old {
+                *ident = new;
+            }
+        }
     }
 }
 
